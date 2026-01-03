@@ -4,7 +4,10 @@ set -euo pipefail
 APP_DIR="/srv/my-office-reservation"
 BRANCH="main"
 VENV_DIR="$APP_DIR/.venv"
-SERVICE_NAME="gunicorn"   # 필요하면 실제 서비스명으로 변경
+#SERVICE_NAME="gunicorn"   # 필요하면 실제 서비스명으로 변경
+SERVICE_NAME="my-office-reservation"   # 필요하면 실제 서비스명으로 변경
+
+
 
 cd "$APP_DIR"
 
