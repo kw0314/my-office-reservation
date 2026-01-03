@@ -1388,6 +1388,9 @@ function renderGrid(){
             if (r && r.series_id) payload["series_id"] = r.series_id;
           }
 
+          // include scope so server knows to apply series-wide update
+          payload.scope = scope;
+
           const resp = await fetch(`/api/office/reservations/${encodeURIComponent(resId)}`, {
             method: "PATCH",
             headers: {"Content-Type":"application/json"},
