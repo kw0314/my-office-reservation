@@ -480,6 +480,7 @@ document.addEventListener("mouseup", () => { state.dragging = false; state.resiz
       document.getElementById("time-fields").style.display = "";
       document.getElementById("repeat-row").style.display = "none";
       document.getElementById("cancel-scope-row").style.display = "";
+      document.getElementById("pin-row").style.display = "";
       document.getElementById("new-pin-row").style.display = "";
       document.getElementById("btn-cancel").style.display = "";
       document.getElementById("btn-save").textContent = "수정 저장";
@@ -1365,13 +1366,19 @@ function renderGrid(){
           closeModal(); await load(); clearSelection(); return;
 
         } else {
+          const pin = document.getElementById("pin").value;
+          if (!/^\d{4}$/.test(pin)){
+            alert("취소 PIN은 숫자 4자리입니다.");
+            return;
+          }
+
           const newPin = document.getElementById("new-pin").value;
           if (newPin && !/^\d{4}$/.test(newPin)){
             alert("새 PIN은 숫자 4자리입니다.");
             return;
           }
 
-          const payload = {room_id: roomId, start_at: startAt, end_at: endAt, title, note_internal: note};
+          const payload = {room_id: roomId, start_at: startAt, end_at: endAt, title, note_internal: note, cancel_pin: pin};
           if (newPin) payload["new_cancel_pin"] = newPin;
           
           // 수정/취소 범위: 전체(반복 예약) 선택 시 series_id 추가
