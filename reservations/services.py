@@ -248,7 +248,7 @@ def update_reservation_series(*, reservation_id, series_id: str, room: Room | No
     """
     Update all reservations in a series (title, note, cancel pin, and optionally time).
     
-    If start_at/end_at provided: apply NEW duration to first instance, then shift others maintaining their spacing.
+    If start_at/end_at provided: apply NEW duration to anchor instance, then shift others maintaining their spacing.
     
     - `series_id` can be passed explicitly; `reservation_id` is used to locate the primary row and validate PIN prior to calling this service.
     """
@@ -265,7 +265,7 @@ def update_reservation_series(*, reservation_id, series_id: str, room: Room | No
 
     # If start_at/end_at provided, compute delta to shift all instances
     delta = None
-    new_duration = None
+    anchor = None
     if start_at is not None and end_at is not None:
         # use the reservation_id instance as anchor
         try:
@@ -273,21 +273,18 @@ def update_reservation_series(*, reservation_id, series_id: str, room: Room | No
         except StopIteration:
             anchor = items[0]
         
-        # NEW duration for the series
-        new_duration = end_at - start_at
-        
         # Delta is the time shift: how much to move the anchor's start from its original to new start
         delta = start_at - anchor.start_at
 
         # compute proposed new intervals for all instances:
-        # - Anchor gets new start_at and new_duration
+        # - Anchor gets new start_at and new end_at
         # - Others shift by delta, keeping their original duration
         new_starts = []
         new_ends = []
         
         for r in items:
             if r.id == anchor.id:
-                # Anchor instance gets the new duration
+                # Anchor instance gets the exact new times
                 new_starts.append(start_at)
                 new_ends.append(end_at)
             else:
@@ -322,7 +319,7 @@ def update_reservation_series(*, reservation_id, series_id: str, room: Room | No
 
     # Apply updates to each instance
     updated = []
-    for i, r in enumerate(items):
+    for r in items:
         if room is not None:
             r.room = room_to_use
         if title is not None:
@@ -333,9 +330,9 @@ def update_reservation_series(*, reservation_id, series_id: str, room: Room | No
             r.set_cancel_pin(new_cancel_pin)
         
         # Apply time shift if delta was computed
-        if delta is not None:
-            if r.id == items[0].id and new_duration is not None:
-                # First instance (anchor) gets the new duration
+        if delta is not None and anchor is not None:
+            if r.id == anchor.id:
+                # Anchor instance gets the exact new times
                 r.start_at = start_at
                 r.end_at = end_at
             else:
