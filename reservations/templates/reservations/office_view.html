@@ -577,7 +577,7 @@ document.addEventListener("mouseup", () => { state.dragging = false; state.resiz
     function enableTimeChange(){
       const resId = document.getElementById("res-id").value;
       if (!resId){
-        alert("예약 생성 모드에서는 드래그로 시간 선택이 됩니다.");
+        alert("예약 수정 모드에서만 시간 변경이 가능합니다.");
         return;
       }
       const lockedRoomId = document.getElementById("room-id").value;
@@ -586,7 +586,7 @@ document.addEventListener("mouseup", () => { state.dragging = false; state.resiz
       state.timeChangeLockedRoomId = lockedRoomId;
 
       setTimeChangeUI(true);
-      closeModal();
+      // 모달을 닫지 않고 그리드 상호작용 가능하게 유지
     }
 
     function cancelTimeChangeMode(){
@@ -1038,24 +1038,20 @@ function renderGrid(){
             const endLabel = (b < state.data.slots.length) ? state.data.slots[b] : state.data.close;
 
             if (state.timeChangeMode){
+              // 시간 변경 모드: 모달 내 필드 업데이트 (모달은 열린 상태 유지)
               const rid = state.timeChangeForResId;
-              cancelTimeChangeMode();
+              state.timeChangeMode = false;
+              state.timeChangeLockedRoomId = null;
+              setTimeChangeUI(false);
+              clearSelection();
 
-              document.getElementById("res-id").value = rid;
-              document.getElementById("room-id").value = room.id;
               document.getElementById("start-at").value = startLabel;
               const endEl = document.getElementById("end-at");
               if (endEl) endEl.value = endLabel;
               const dur = minutesBetweenHHMM_(startLabel, endLabel);
               setDuration_(dur);
               updateEndPreview_();
-
-              document.getElementById("title").value = state.resById[rid]?.title || "";
-              document.getElementById("note").value  = state.resById[rid]?.note_internal || "";
-              document.getElementById("pin").value = "";
-              document.getElementById("new-pin").value = "";
-              setModalModeEdit();
-              modal.showModal();
+              rebuildEndPickerFromStart_();
               return;
             }
 
