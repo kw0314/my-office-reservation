@@ -282,13 +282,16 @@ def office_update_reservation(request: HttpRequest, rid) -> JsonResponse:
         # scope handling: if series, apply series-wide update (title/note/new_pin)
         scope = str(data.get("scope") or "single").lower()
         if scope == "series":
-            series_id = data.get("series_id") or str(target.series_id) if target.series_id else None
+            series_id = data.get("series_id") or (str(target.series_id) if target.series_id else None)
             if not series_id:
                 raise ValidationError("No series_id available for series update.")
+            # Pass room and the new start/end to allow shifting the whole series
             services.update_reservation_series(
                 reservation_id=rid,
                 series_id=series_id,
-                room=None,
+                room=room,
+                start_at=start_at,
+                end_at=end_at,
                 title=title,
                 note_internal=note,
                 new_cancel_pin=new_pin,

@@ -242,6 +242,7 @@ def update_reservation(*, reservation_id, room: Room, start_at, end_at, title: s
 
 @transaction.atomic
 def update_reservation_series(*, reservation_id, series_id: str, room: Room | None,
+                              start_at=None, end_at=None,
                               title: str | None, note_internal: str | None,
                               new_cancel_pin: str | None, device: AccessDevice | None, ip: str | None):
     """
@@ -251,36 +252,87 @@ def update_reservation_series(*, reservation_id, series_id: str, room: Room | No
     - `series_id` can be passed explicitly; `reservation_id` is used to locate the primary row and validate PIN prior to calling this service.
     """
     # Load all confirmed reservations in the series
-    qs = Reservation.objects.select_for_update().filter(series_id=series_id, status=Reservation.STATUS_CONFIRMED)
+    qs = Reservation.objects.select_for_update().filter(series_id=series_id, status=Reservation.STATUS_CONFIRMED).order_by('start_at')
     items = list(qs)
     if not items:
         raise ValidationError("No series reservations found.")
 
+    series_ids = [r.id for r in items]
+
+    # Determine target room for conflict checks: use provided room or current room of series
+    room_to_use = room or items[0].room
+
+    # If start_at/end_at provided, compute delta to shift all instances
+    delta = None
+    if start_at is not None and end_at is not None:
+        # use the reservation_id instance as anchor
+        try:
+            anchor = next(r for r in items if str(r.id) == str(reservation_id) or r.id == reservation_id)
+        except StopIteration:
+            anchor = items[0]
+        delta = start_at - anchor.start_at
+
+        # compute proposed new intervals
+        new_starts = [r.start_at + delta for r in items]
+        new_ends = [r.end_at + delta for r in items]
+        min_start = min(new_starts)
+        max_end = max(new_ends)
+
+        # preload potential conflicts excluding this series
+        blocks_qs = (Block.objects.filter(room__isnull=True) | Block.objects.filter(room=room_to_use))
+        blocks_qs = blocks_qs.filter(start_at__lt=max_end, end_at__gt=min_start)
+        block_intervals = [(b.start_at, b.end_at) for b in blocks_qs.only('start_at', 'end_at')]
+
+        existing_qs = Reservation.objects.filter(
+            room=room_to_use,
+            status=Reservation.STATUS_CONFIRMED,
+            start_at__lt=max_end,
+            end_at__gt=min_start,
+        ).exclude(id__in=series_ids).only('start_at', 'end_at')
+        existing_intervals = [(x.start_at, x.end_at) for x in existing_qs]
+
+        # Validate conflicts for each proposed interval
+        for s_new, e_new in zip(new_starts, new_ends):
+            for bs, be in block_intervals:
+                if _intervals_overlap(s_new, e_new, bs, be):
+                    raise ValidationError("Time is blocked (unavailable) for series update.")
+            for rs, re in existing_intervals:
+                if _intervals_overlap(s_new, e_new, rs, re):
+                    raise ValidationError("Time overlaps with an existing reservation for series update.")
+
     # Apply updates to each instance
+    updated = []
     for r in items:
+        if room is not None:
+            r.room = room_to_use
         if title is not None:
             r.title = title.strip()
         if note_internal is not None:
             r.note_internal = note_internal.strip()
         if new_cancel_pin:
             r.set_cancel_pin(new_cancel_pin)
-        # validate (times are unchanged so this should pass)
+        if delta is not None:
+            r.start_at = r.start_at + delta
+            r.end_at = r.end_at + delta
+
+        # validate each instance (slot alignment, same-day, operating hours)
         r.full_clean()
         r.save()
+        updated.append(r)
 
     AuditLog.objects.create(
         actor_type=AuditLog.ACTOR_DEVICE if device else AuditLog.ACTOR_ADMIN,
         actor_label=(device.label if device else "office"),
         action="reservation_update_series",
-        reservation=items[0],
+        reservation=updated[0],
         ip=ip,
         detail={
             "series_id": str(series_id),
-            "count": len(items),
+            "count": len(updated),
             "title": title,
         },
     )
-    return items
+    return updated
 
 
 @transaction.atomic
