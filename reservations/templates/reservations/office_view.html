@@ -326,7 +326,7 @@
     <div class="actions">
       <button type="button" onclick="closeModal()">닫기</button>
       <button type="button" id="btn-cancel" class="danger" style="display:none;" onclick="cancelReservation()">취소(비번 필요)</button>
-      <button type="button" id="btn-save" class="primary" onclick="saveReservation()">저장</button>
+      <button type="button" id="btn-save" class="primary" onclick="saveReservation()">저장(비번 필요)</button>
     </div>
       <datalist id="time-30-start"></datalist>
 <datalist id="time-30-end"></datalist>
@@ -486,7 +486,7 @@ document.addEventListener("mouseup", () => { state.dragging = false; state.resiz
       document.getElementById("btn-save").textContent = "수정 저장";
       document.getElementById("modal-title").textContent = "예약 수정/취소";
       document.getElementById("modal-hint").textContent =
-        "시간 변경: 모달의 시간 필드를 직접 수정하거나, 예약 블록 좌/우 끝에서 ↔ 커서로 드래그하여 리사이즈할 수 있습니다.";
+        "시간 변경: 교리실/날짜/시작/종료/시간 필드의 값을 직접 수정해 주세요.";
     }
 
     function openCreate(roomId, startLabel, endLabel){
