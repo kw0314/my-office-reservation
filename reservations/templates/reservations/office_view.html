@@ -464,7 +464,8 @@ document.addEventListener("mouseup", () => { state.dragging = false; state.resiz
     }
 
     function setModalModeCreate(){
-      document.getElementById("time-change-row").style.display = "none";
+      const tcRow = document.getElementById("time-change-row");
+      if (tcRow) tcRow.style.display = "none";
       document.getElementById("time-fields").style.display = "";
       document.getElementById("repeat-row").style.display = "";
       document.getElementById("cancel-scope-row").style.display = "none";
