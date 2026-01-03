@@ -407,39 +407,55 @@ document.addEventListener("mouseup", () => { state.dragging = false; state.resiz
     }
 
     function showCreateBar(roomId, startLabel, endLabel){
-      state.pendingCreate = { roomId, startLabel, endLabel };
-      const bar = document.getElementById('create-bar');
-      const t = document.getElementById('create-bar-text');
-      if (t) t.textContent = `선택: ${startLabel}–${endLabel}`;
-      if (bar) bar.hidden = false;
+      try {
+        state.pendingCreate = { roomId, startLabel, endLabel };
+        const bar = document.getElementById('create-bar');
+        const t = document.getElementById('create-bar-text');
+        if (t) t.textContent = `선택: ${startLabel}–${endLabel}`;
+        if (bar) {
+          bar.hidden = false;
+          console.log("[showCreateBar] visible with:", startLabel, endLabel);
+        } else {
+          console.error("[showCreateBar] create-bar element not found");
+        }
+      } catch(err) {
+        console.error("[showCreateBar] error:", err);
+      }
     }
 
     function openCreateFromBar(){
-      const p = state.pendingCreate;
-      if (!p){
-        // Fallback: derive from current drag selection (in case pendingCreate was cleared)
-        try{
-          const roomId = state.dragRoomId;
-          const sSlot = state.dragStartSlot;
-          const eSlot = state.dragEndSlot;
-          if (roomId && sSlot && eSlot && state.slotIndex && state.data && Array.isArray(state.data.slots)){
-            const si = state.slotIndex[sSlot];
-            const ei = state.slotIndex[eSlot];
-            if (typeof si === "number" && typeof ei === "number"){
-              const a = Math.min(si, ei);
-              const b = Math.max(si, ei) + 1;
-              const startLabel = state.data.slots[a];
-              const endLabel = (b < state.data.slots.length) ? state.data.slots[b] : state.data.close;
-              hideCreateBar();
-              openCreate(roomId, startLabel, endLabel);
-              return;
+      try {
+        const p = state.pendingCreate;
+        if (!p){
+          // Fallback: derive from current drag selection (in case pendingCreate was cleared)
+          try{
+            const roomId = state.dragRoomId;
+            const sSlot = state.dragStartSlot;
+            const eSlot = state.dragEndSlot;
+            if (roomId && sSlot && eSlot && state.slotIndex && state.data && Array.isArray(state.data.slots)){
+              const si = state.slotIndex[sSlot];
+              const ei = state.slotIndex[eSlot];
+              if (typeof si === "number" && typeof ei === "number"){
+                const a = Math.min(si, ei);
+                const b = Math.max(si, ei) + 1;
+                const startLabel = state.data.slots[a];
+                const endLabel = (b < state.data.slots.length) ? state.data.slots[b] : state.data.close;
+                hideCreateBar();
+                openCreate(roomId, startLabel, endLabel);
+                return;
+              }
             }
-          }
-        } catch(e){ console.warn(e); }
-        return;
+          } catch(e){ console.error("openCreateFromBar fallback error:", e); }
+          console.error("openCreateFromBar: no pendingCreate and no fallback available");
+          return;
+        }
+        hideCreateBar();
+        console.log("[openCreateFromBar] opening:", p);
+        openCreate(p.roomId, p.startLabel, p.endLabel);
+      } catch(err) {
+        console.error("[openCreateFromBar] unexpected error:", err);
+        alert("예약 모달 오픈 중 오류가 발생했습니다: " + err.message);
       }
-      hideCreateBar();
-      openCreate(p.roomId, p.startLabel, p.endLabel);
     }
 
     function cancelCreateSelection(){
@@ -472,46 +488,52 @@ document.addEventListener("mouseup", () => { state.dragging = false; state.resiz
     }
 
     function openCreate(roomId, startLabel, endLabel){
-      document.getElementById("res-id").value = "";
-      document.getElementById("room-id").value = roomId;
+      try {
+        document.getElementById("res-id").value = "";
+        document.getElementById("room-id").value = roomId;
 
-      // start-at: HH:MM
-      document.getElementById("start-at").value = startLabel;
+        // date for reservation (defaults to selected date)
+        const md = document.getElementById("modal-date");
+        if (md) md.value = getSelectedDate();
 
-      // duration from selection (minutes)
-      const dur = minutesBetweenHHMM_(startLabel, endLabel);
-      setDuration_(dur);
+        // start-at: HH:MM
+        const startEl = document.getElementById("start-at");
+        if (startEl) startEl.value = startLabel;
 
+        // duration from selection (minutes)
+        const dur = minutesBetweenHHMM_(startLabel, endLabel);
+        setDuration_(dur);
 
-      // date for reservation (defaults to selected date)
-      const md = document.getElementById("modal-date");
-      if (md) md.value = getSelectedDate();
+        // end-at based on duration
+        const endEl = document.getElementById("end-at");
+        if (endEl){
+          const endHH = addMinutesToHHMM_(startLabel, dur);
+          endEl.value = endHH;
+        }
 
-      // end-at based on duration
-      const endEl = document.getElementById("end-at");
-      if (endEl){
-        const endHH = addMinutesToHHMM_(startLabel, dur);
-        endEl.value = endHH;
+        document.getElementById("title").value = "";
+        document.getElementById("note").value = "";
+        document.getElementById("pin").value = "";
+        document.getElementById("new-pin").value = "";
+
+        // repeat defaults
+        const repEn = document.getElementById("repeat-enabled");
+        const repOpts = document.getElementById("repeat-options");
+        if (repEn) repEn.checked = false;
+        if (repOpts) repOpts.style.display = "none";
+        document.querySelectorAll(".repeat-dow").forEach(cb => cb.checked = false);
+        const untilEl = document.getElementById("repeat-until");
+        if (untilEl) untilEl.value = "";
+
+        setModalModeCreate();
+        updateEndPreview_();
+        rebuildEndPickerFromStart_();
+        console.log("[openCreate] modal.showModal() called");
+        modal.showModal();
+      } catch(err) {
+        console.error("[openCreate] error:", err);
+        alert("모달 열기 중 오류: " + err.message);
       }
-
-      document.getElementById("title").value = "";
-      document.getElementById("note").value = "";
-      document.getElementById("pin").value = "";
-      document.getElementById("new-pin").value = "";
-
-      // repeat defaults
-      const repEn = document.getElementById("repeat-enabled");
-      const repOpts = document.getElementById("repeat-options");
-      if (repEn) repEn.checked = false;
-      if (repOpts) repOpts.style.display = "none";
-      document.querySelectorAll(".repeat-dow").forEach(cb => cb.checked = false);
-      const untilEl = document.getElementById("repeat-until");
-      if (untilEl) untilEl.value = "";
-
-      setModalModeCreate();
-      updateEndPreview_();
-      rebuildEndPickerFromStart_();
-      modal.showModal();
     }
 
     function openEdit(resId){
@@ -771,8 +793,9 @@ function rebuildEndPickerFromStart_(){
     preferredEnd = close;
   }
 
-  // if invalid or not after start, set it
-  if (eMin === null || eMin <= sMin){
+  // only update if end is invalid/empty or too early (not after start)
+  // but preserve a valid end time that's at least 30 min after start
+  if (eMin === null || (eMin !== null && eMin < sMin + 30)){
     endEl.value = preferredEnd;
   }
 }
@@ -1483,15 +1506,25 @@ document.addEventListener("DOMContentLoaded", () => {
   // The create bar appears after selecting a contiguous time range.
   // Open the create modal only when pressing "예약".
   const btnCreateOpen = document.getElementById('btn-create-open');
-  if (btnCreateOpen) btnCreateOpen.addEventListener('click', (e) => {
-    e.preventDefault();
-    openCreateFromBar();
-  });
+  if (btnCreateOpen) {
+    btnCreateOpen.addEventListener('click', (e) => {
+      e.preventDefault();
+      console.log("[btn-create-open] clicked");
+      openCreateFromBar();
+    });
+  } else {
+    console.warn("[init] btn-create-open not found");
+  }
   const btnCreateCancel = document.getElementById('btn-create-cancel');
-  if (btnCreateCancel) btnCreateCancel.addEventListener('click', (e) => {
-    e.preventDefault();
-    cancelCreateSelection();
-  });
+  if (btnCreateCancel) {
+    btnCreateCancel.addEventListener('click', (e) => {
+      e.preventDefault();
+      console.log("[btn-create-cancel] clicked");
+      cancelCreateSelection();
+    });
+  } else {
+    console.warn("[init] btn-create-cancel not found");
+  }
 
   const dateEl = document.getElementById("date") || document.querySelector('input[type="date"][name="date"]');
   if (dateEl){
@@ -1505,6 +1538,15 @@ document.addEventListener("DOMContentLoaded", () => {
   const btn = document.getElementById("btn-today");
   if (btn) btn.addEventListener("click", (e) => { e.preventDefault(); goToday(); });
 
+  // ✅ Initial load: fetch grid data
+  if (typeof load === "function") {
+    load().catch(e => { 
+      console.error("[init] load() failed:", e);
+      alert("그리드 로드 실패: " + e.message);
+    });
+  } else {
+    console.error("[init] load function not available");
+  }
 
   // === Repeat reservation UI toggle ===
   const repEn = document.getElementById("repeat-enabled");
