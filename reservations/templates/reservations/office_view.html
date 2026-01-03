@@ -191,7 +191,7 @@
   <div class="banner" id="time-banner">
     <div>
       <strong>시간 변경 모드</strong>
-      <div class="muted">그리드에서 <b>같은 교리실</b>의 새 시간 범위를 드래그하세요. (완료 후 자동으로 모달이 다시 열립니다)</div>
+      <div class="muted">그리드에서 <b>시작 셀</b>을 먼저 클릭한 후 <b>종료 셀</b>을 클릭하세요. (같은 교리실에서만 가능)</div>
       <div class="muted">취소: ESC 또는 “취소” 버튼</div>
     </div>
     <div class="actions">
@@ -373,6 +373,7 @@ const modal = document.getElementById("modal");
       timeChangeMode: false,
       timeChangeForResId: null,
       timeChangeLockedRoomId: null,
+      timeChangeStartSlot: null,
 
       // resize
       resRanges: {},     // resId -> { roomId, si, ei }
@@ -593,6 +594,7 @@ document.addEventListener("mouseup", () => { state.dragging = false; state.resiz
       state.timeChangeMode = false;
       state.timeChangeForResId = null;
       state.timeChangeLockedRoomId = null;
+      state.timeChangeStartSlot = null;
       setTimeChangeUI(false);
       clearSelection();
     }
@@ -894,18 +896,45 @@ function renderGrid(){
               }
             }
 
-            // ✅ time change mode drag (even on reservation cells), lock to same room
+            // ✅ time change mode: 클릭으로 시작/종료 셀 순차 선택
             if (state.timeChangeMode){
               hideCreateBar();
               if (state.timeChangeLockedRoomId && String(room.id) !== String(state.timeChangeLockedRoomId)){
                 return;
               }
-              state.dragging = true;
-              state.dragRoomId = room.id;
-              state.dragStartSlot = td.dataset.slot;
-              state.dragEndSlot = td.dataset.slot;
-              const si = state.slotIndex[state.dragStartSlot];
-              markSelection(room.id, si, si+1);
+              
+              // 첫 번째 클릭: 시작 셀 선택
+              if (!state.timeChangeStartSlot){
+                state.timeChangeStartSlot = td.dataset.slot;
+                const si = state.slotIndex[state.timeChangeStartSlot];
+                markSelection(room.id, si, si+1);
+                return;
+              }
+              
+              // 두 번째 클릭: 종료 셀 선택 및 처리
+              const endSlot = td.dataset.slot;
+              const si = state.slotIndex[state.timeChangeStartSlot];
+              const ei = state.slotIndex[endSlot];
+              const a = Math.min(si, ei);
+              const b = Math.max(si, ei) + 1;
+              
+              const startLabel = state.data.slots[a];
+              const endLabel = (b < state.data.slots.length) ? state.data.slots[b] : state.data.close;
+              
+              // 모달 필드 업데이트
+              state.timeChangeMode = false;
+              state.timeChangeStartSlot = null;
+              state.timeChangeLockedRoomId = null;
+              setTimeChangeUI(false);
+              clearSelection();
+
+              document.getElementById("start-at").value = startLabel;
+              const endEl = document.getElementById("end-at");
+              if (endEl) endEl.value = endLabel;
+              const dur = minutesBetweenHHMM_(startLabel, endLabel);
+              setDuration_(dur);
+              updateEndPreview_();
+              rebuildEndPickerFromStart_();
               return;
             }
 
@@ -988,6 +1017,8 @@ function renderGrid(){
 
           td.addEventListener("mouseover", () => {
             if (!state.dragging) return;
+            // 시간 변경 모드에서는 드래그 무시
+            if (state.timeChangeMode) return;
             if (state.dragRoomId !== room.id) return;
 
             state.dragEndSlot = td.dataset.slot;
@@ -1036,24 +1067,6 @@ function renderGrid(){
 
             const startLabel = state.data.slots[a];
             const endLabel = (b < state.data.slots.length) ? state.data.slots[b] : state.data.close;
-
-            if (state.timeChangeMode){
-              // 시간 변경 모드: 모달 내 필드 업데이트 (모달은 열린 상태 유지)
-              const rid = state.timeChangeForResId;
-              state.timeChangeMode = false;
-              state.timeChangeLockedRoomId = null;
-              setTimeChangeUI(false);
-              clearSelection();
-
-              document.getElementById("start-at").value = startLabel;
-              const endEl = document.getElementById("end-at");
-              if (endEl) endEl.value = endLabel;
-              const dur = minutesBetweenHHMM_(startLabel, endLabel);
-              setDuration_(dur);
-              updateEndPreview_();
-              rebuildEndPickerFromStart_();
-              return;
-            }
 
             // 선택만 하고, '예약' 버튼을 눌러 모달을 띄웁니다.
             showCreateBar(room.id, startLabel, endLabel);
