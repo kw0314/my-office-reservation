@@ -1414,9 +1414,11 @@ function renderGrid(){
           // If series update was requested and server applied it, update any currently-loaded instances
           try {
             if (scope === "series" && out && out.ok && Array.isArray(out.updated)){
+              console.log("[series-apply] updating", out.updated.length, "instances");
               out.updated.forEach(u => {
                 const id = String(u.id);
                 const existing = state.resById[id];
+                console.log(`[series-apply] id=${id}, existing=${!!existing}, new_time=${u.start_at}~${u.end_at}`);
                 if (existing){
                   existing.start_at = u.start_at;
                   existing.end_at = u.end_at;
@@ -1427,7 +1429,9 @@ function renderGrid(){
                   if (idx !== -1) state.data.reservations[idx] = existing;
                 }
               });
+              console.log("[series-apply] renderGrid calling...");
               renderGrid();
+              console.log("[series-apply] done");
             }
           } catch(e){ console.warn("series client-side apply failed:", e); }
 

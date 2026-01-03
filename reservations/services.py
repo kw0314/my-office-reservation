@@ -319,6 +319,8 @@ def update_reservation_series(*, reservation_id, series_id: str, room: Room | No
 
     # Apply updates to each instance
     updated = []
+    new_duration = end_at - start_at if (end_at is not None and start_at is not None) else None
+    
     for r in items:
         if room is not None:
             r.room = room_to_use
@@ -336,9 +338,9 @@ def update_reservation_series(*, reservation_id, series_id: str, room: Room | No
                 r.start_at = start_at
                 r.end_at = end_at
             else:
-                # Other instances shift by delta, keep their original duration
+                # Other instances shift by delta, applying new duration to each
                 r.start_at = r.start_at + delta
-                r.end_at = r.end_at + delta
+                r.end_at = r.start_at + new_duration
 
         # validate each instance (slot alignment, same-day, operating hours)
         r.full_clean()
