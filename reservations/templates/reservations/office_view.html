@@ -303,7 +303,7 @@
     </div>
     <div class="row">
       <label>단체명(공개)</label>
-      <input id="title" type="text" placeholder="예: 초등부 3반" />
+      <input id="title" type="text" placeholder="예: 유스그룹" />
     </div>
 
     <div class="row">
@@ -473,7 +473,7 @@ document.addEventListener("mouseup", () => { state.dragging = false; state.resiz
       document.getElementById("btn-cancel").style.display = "none";
       document.getElementById("btn-save").textContent = "생성";
       document.getElementById("modal-title").textContent = "예약 생성";
-      document.getElementById("modal-hint").textContent = "취소 PIN(4자리)은 생성 시 필수입니다.";
+      document.getElementById("modal-hint").textContent = "수정/취소 PIN(4자리)은 생성 시 필수입니다.";
     }
 
     function setModalModeEdit(){
@@ -1312,7 +1312,7 @@ function renderGrid(){
         if (!resId){
           const pin = document.getElementById("pin").value;
           if (!/^\d{4}$/.test(pin)){
-            alert("취소 PIN은 숫자 4자리입니다.");
+            alert("수정/취소 PIN(비번)은 숫자 4자리입니다.");
             return;
           }
 
@@ -1368,7 +1368,7 @@ function renderGrid(){
         } else {
           const pin = document.getElementById("pin").value;
           if (!/^\d{4}$/.test(pin)){
-            alert("취소 PIN은 숫자 4자리입니다.");
+            alert("수정/취소 PIN은 숫자 4자리입니다.");
             return;
           }
 
@@ -1424,7 +1424,7 @@ function renderGrid(){
       const resId = document.getElementById("res-id").value;
       const pin = document.getElementById("pin").value;
       if (!/^\d{4}$/.test(pin)){
-        alert("취소 PIN은 숫자 4자리입니다.");
+        alert("수정/취소 PIN은 숫자 4자리입니다.");
         return;
       }
 
