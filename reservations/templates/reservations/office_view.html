@@ -291,7 +291,7 @@
 </div>
 
 <div class="row" id="cancel-scope-row" style="display:none;">
-      <label>취소 범위</label>
+      <label>수정/취소 범위</label>
       <div style="display:flex;gap:14px;flex-wrap:wrap;">
         <label style="display:flex;align-items:center;gap:6px;font-weight:600;">
           <input type="radio" name="cancel-scope" value="single" checked>현재 예약만
@@ -1349,6 +1349,13 @@ function renderGrid(){
 
           const payload = {room_id: roomId, start_at: startAt, end_at: endAt, title, note_internal: note};
           if (newPin) payload["new_cancel_pin"] = newPin;
+          
+          // 수정/취소 범위: 전체(반복 예약) 선택 시 series_id 추가
+          const scope = (document.querySelector('input[name="cancel-scope"]:checked')?.value || "single");
+          if (scope === "series"){
+            const r = state.currentEdit || state.resById[resId];
+            if (r && r.series_id) payload["series_id"] = r.series_id;
+          }
 
           const resp = await fetch(`/api/office/reservations/${encodeURIComponent(resId)}`, {
             method: "PATCH",
