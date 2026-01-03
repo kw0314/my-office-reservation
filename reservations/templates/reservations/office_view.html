@@ -1411,6 +1411,31 @@ function renderGrid(){
             return;
           }
 
+          // If series update was requested and server applied it, update any currently-loaded instances
+          try {
+            if (scope === "series" && out && out.ok && payload && payload.series_id){
+              const sid = payload.series_id;
+              const anchor = state.resById[resId] || state.currentEdit;
+              if (anchor && anchor.series_id === sid){
+                const newStart = parseISO(startAt);
+                const oldAnchorStart = parseISO(anchor.start_at);
+                const deltaMs = newStart.getTime() - oldAnchorStart.getTime();
+                state.data.reservations.forEach(r => {
+                  if (r.series_id === sid){
+                    const rs = parseISO(r.start_at);
+                    const re = parseISO(r.end_at);
+                    r.start_at = new Date(rs.getTime() + deltaMs).toISOString();
+                    r.end_at = new Date(re.getTime() + deltaMs).toISOString();
+                    if (title) r.title = title;
+                    if (note) r.note_internal = note;
+                    state.resById[r.id] = r;
+                  }
+                });
+                renderGrid();
+              }
+            }
+          } catch(e){ console.warn("series client-side update failed:", e); }
+
           closeModal(); await load(); clearSelection(); return;
         }
 
