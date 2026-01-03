@@ -287,7 +287,7 @@ def office_update_reservation(request: HttpRequest, rid) -> JsonResponse:
             if not series_id:
                 raise ValidationError("No series_id available for series update.")
             # Pass room and the new start/end to allow shifting the whole series
-            services.update_reservation_series(
+            updated_items = services.update_reservation_series(
                 reservation_id=rid,
                 series_id=series_id,
                 room=room,
@@ -299,7 +299,8 @@ def office_update_reservation(request: HttpRequest, rid) -> JsonResponse:
                 device=None,
                 ip=request.META.get("REMOTE_ADDR"),
             )
-            return JsonResponse({"ok": True})
+            print(f"Series update applied: {len(updated_items)} instances (series_id={series_id})")
+            return JsonResponse({"ok": True, "count": len(updated_items)})
 
         # Single reservation update (PIN already verified above)
         services.update_reservation(

@@ -1391,7 +1391,7 @@ function renderGrid(){
           // include scope so server knows to apply series-wide update
           payload.scope = scope;
 
-          console.log("[edit] payload=", payload);
+          try { console.log("[edit] payload=", JSON.stringify(payload)); } catch(e){ console.log("[edit] payload (obj)=", payload); }
           const resp = await fetch(`/api/office/reservations/${encodeURIComponent(resId)}`, {
             method: "PATCH",
             headers: {"Content-Type":"application/json"},
