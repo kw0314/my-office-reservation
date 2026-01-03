@@ -1,0 +1,256 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8"/>
+  <meta name="viewport" content="width=device-width,initial-scale=1"/>
+  <title>교리실별 예약 현황</title>
+  <style>
+    :root{
+      --bg:#0b0f14; --card:#121a24; --muted:#93a4b7; --fg:#eaf2ff;
+      --accent:#7dd3fc; --danger:#fb7185; --ok:#34d399; --line:rgba(255,255,255,.10);
+    }
+    *{box-sizing:border-box}
+    body{margin:0;background:linear-gradient(180deg,#0b0f14,#0b0f14 45%,#070a0f);color:var(--fg);font-family:system-ui,-apple-system,"Noto Sans KR",Segoe UI,Roboto,Arial,sans-serif}
+    header{position:sticky;top:0;z-index:10;background:rgba(11,15,20,.82);backdrop-filter: blur(10px);border-bottom:1px solid var(--line)}
+    .wrap{max-width:1100px;margin:0 auto;padding:16px}
+    h1{margin:0;font-size:18px;font-weight:800;letter-spacing:-.2px}
+    .bar{display:flex;gap:10px;align-items:center;justify-content:space-between}
+    .controls{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+    input[type="date"]{background:#0f1722;border:1px solid var(--line);color:var(--fg);padding:8px 10px;border-radius:10px}
+    button{background:#0f1722;border:1px solid var(--line);color:var(--fg);padding:8px 12px;border-radius:10px;cursor:pointer}
+    button:hover{border-color:rgba(125,211,252,.65)}
+    .today{border-color:rgba(125,211,252,.5)}
+    .grid{display:grid;grid-template-columns:1fr;gap:12px;margin-top:14px}
+    .card{background:rgba(18,26,36,.92);border:1px solid var(--line);border-radius:14px;overflow:hidden}
+    .card-h{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:12px 14px;border-bottom:1px solid var(--line)}
+    .room{font-weight:800}
+    .meta{color:var(--muted);font-size:12px}
+    .list{padding:10px 14px}
+    .row{display:grid;grid-template-columns:160px 1fr 210px;gap:10px;align-items:center;padding:10px 0;border-bottom:1px dashed rgba(255,255,255,.08)}
+    .row:last-child{border-bottom:none}
+    .time{font-variant-numeric:tabular-nums;color:#cfe5ff}
+    .title{font-weight:700}
+    .note{color:var(--muted);font-size:12px;margin-top:4px;white-space:pre-wrap}
+    .actions{display:flex;gap:8px;justify-content:flex-end;align-items:center;flex-wrap:wrap}
+    .pin{width:86px;background:#0f1722;border:1px solid var(--line);color:var(--fg);padding:8px 10px;border-radius:10px}
+    .scope{display:flex;gap:8px;align-items:center;color:var(--muted);font-size:12px}
+    .danger{border-color:rgba(251,113,133,.4)}
+    .danger:hover{border-color:rgba(251,113,133,.8)}
+    .pill{padding:4px 8px;border:1px solid var(--line);border-radius:999px;font-size:12px;color:var(--muted)}
+    .empty{color:var(--muted);padding:14px}
+    .topnote{color:var(--muted);font-size:12px;margin-top:6px}
+    @media (max-width:840px){
+      .row{grid-template-columns:1fr;gap:8px}
+      .actions{justify-content:flex-start}
+    }
+  </style>
+</head>
+<body>
+<header>
+  <div class="wrap">
+    <div class="bar">
+      <div>
+        <h1>교리실별 예약 현황</h1>
+        <div class="topnote">각 교리실 카드에서 예약을 확인하고, PIN으로 취소(단건/전체)할 수 있습니다.</div>
+      </div>
+      <div class="controls">
+        <input id="date" type="date"/>
+        <button class="today" id="btn-today">오늘</button>
+        <button id="btn-refresh">새로고침</button>
+        <button id="btn-office">타임라인 보기</button>
+      </div>
+    </div>
+  </div>
+</header>
+
+<div class="wrap">
+  <div id="status" class="meta"></div>
+  <div id="cards" class="grid"></div>
+</div>
+
+<script>
+  const TZ = "America/Chicago";
+
+  const qs = new URLSearchParams(location.search);
+  const todayIso = () => new Date().toISOString().slice(0,10);
+  const getDate = () => qs.get("date") || document.getElementById("date").value || todayIso();
+
+  function setQueryDate(d){
+    const u = new URL(location.href);
+    u.searchParams.set("date", d);
+    history.replaceState(null, "", u.toString());
+  }
+
+  function fmtTime(iso){
+    // iso is already localtime iso string, just HH:MM
+    try { return iso.slice(11,16); } catch(e){ return ""; }
+  }
+
+  function escapeHtml(s){
+    return String(s||"").replace(/[&<>"']/g, (m)=>({ "&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;","'":"&#39;" }[m]));
+  }
+
+  async function apiGrid(date){
+    const res = await fetch(`/api/office/grid?date=${encodeURIComponent(date)}`, {cache:"no-store"});
+    const txt = await res.text();
+    let data = null;
+    try{ data = txt ? JSON.parse(txt) : null; }catch(e){}
+    if (!res.ok || !data){
+      throw new Error(`Grid API failed: HTTP ${res.status} ${txt.slice(0,200)}`);
+    }
+    return data;
+  }
+
+  function groupByRoom(data){
+    const by = {};
+    (data.rooms||[]).forEach(r => by[String(r.id)] = {room:r, items:[]});
+    (data.reservations||[]).forEach(r => {
+      const k = String(r.room_id);
+      if (!by[k]) by[k] = {room:{id:k, name:`Room ${k}`}, items:[]};
+      by[k].items.push(r);
+    });
+    // sort
+    Object.values(by).forEach(o => o.items.sort((a,b)=> (a.start_at||"").localeCompare(b.start_at||"")));
+    // keep order same as rooms list
+    return (data.rooms||[]).map(r => by[String(r.id)]).filter(Boolean);
+  }
+
+  async function cancelReservation(rid, pin, scope){
+    const res = await fetch(`/api/office/reservations/${rid}/cancel`, {
+      method:"POST",
+      headers: {"Content-Type":"application/json"},
+      body: JSON.stringify({ cancel_pin: pin, scope })
+    });
+    const raw = await res.text();
+    let out = null;
+    try{ out = raw ? JSON.parse(raw) : null; }catch(e){ out = {ok:false, error:"Invalid JSON", raw}; }
+    if (!res.ok || !out || out.ok === false){
+      const msg = (out && (out.error || out.detail || out.message)) ? (out.error || out.detail || out.message) : "취소 실패";
+      const extra = (out && out.raw) ? String(out.raw).slice(0,500) : "";
+      throw new Error(`${msg} (HTTP ${res.status})` + (extra ? `\n${extra}` : ""));
+    }
+    return out;
+  }
+
+  function renderCards(groups, date){
+    const host = document.getElementById("cards");
+    host.innerHTML = "";
+
+    if (!groups.length){
+      host.innerHTML = `<div class="card"><div class="empty">교리실이 없습니다. 관리자(admin)에서 Room을 추가하세요.</div></div>`;
+      return;
+    }
+
+    groups.forEach(g => {
+      const roomId = String(g.room.id);
+      const roomName = g.room.name;
+
+      const card = document.createElement("div");
+      card.className = "card";
+
+      const head = document.createElement("div");
+      head.className = "card-h";
+      head.innerHTML = `
+        <div>
+          <div class="room"><a href="/office/rooms/${roomId}/?date=${encodeURIComponent(date)}" style="color:inherit;text-decoration:none">${escapeHtml(roomName)}</a></div>
+          <div class="meta"><span class="pill">Room ID: ${roomId}</span> <span class="pill">${date}</span></div>
+        </div>
+        <div class="meta">${g.items.length ? `예약 ${g.items.length}건` : "예약 없음"}</div>
+      `;
+      card.appendChild(head);
+
+      const list = document.createElement("div");
+      list.className = "list";
+
+      if (!g.items.length){
+        list.innerHTML = `<div class="empty">오늘 예약이 없습니다.</div>`;
+      } else {
+        g.items.forEach(item => {
+          const rid = item.id;
+          const row = document.createElement("div");
+          row.className = "row";
+
+          const time = `${fmtTime(item.start_at)} - ${fmtTime(item.end_at)}`;
+
+          row.innerHTML = `
+            <div class="time">${time}</div>
+            <div>
+              <div class="title">${escapeHtml(item.title || "")} <span class="meta">#${rid}</span></div>
+              ${item.note_internal ? `<div class="note">${escapeHtml(item.note_internal)}</div>` : ``}
+            </div>
+            <div class="actions">
+              <input class="pin" type="password" inputmode="numeric" maxlength="4" placeholder="PIN" aria-label="cancel pin"/>
+              <div class="scope">
+                <label><input type="radio" name="scope-${rid}" value="single" checked> 단건</label>
+                <label><input type="radio" name="scope-${rid}" value="series"> 전체</label>
+              </div>
+              <button class="danger" data-action="cancel" data-rid="${rid}">취소</button>
+            </div>
+          `;
+
+          list.appendChild(row);
+        });
+      }
+
+      card.appendChild(list);
+      host.appendChild(card);
+    });
+
+    // wire cancel buttons
+    host.querySelectorAll('button[data-action="cancel"]').forEach(btn => {
+      btn.addEventListener("click", async () => {
+        const rid = btn.getAttribute("data-rid");
+        const row = btn.closest(".row");
+        const pin = row.querySelector(".pin").value || "";
+        const scope = row.querySelector(`input[name="scope-${rid}"]:checked`)?.value || "single";
+
+        if (!pin || pin.length < 4){
+          alert("취소 PIN 4자리를 입력하세요.");
+          return;
+        }
+        if (!confirm(`예약 #${rid} 을(를) ${scope === "series" ? "전체 반복" : "단건"} 취소할까요?`)) return;
+
+        btn.disabled = true;
+        const oldText = btn.textContent;
+        btn.textContent = "취소중…";
+        try{
+          await cancelReservation(rid, pin, scope);
+          await loadAndRender();
+        }catch(e){
+          alert(String(e.message || e));
+        }finally{
+          btn.disabled = false;
+          btn.textContent = oldText;
+        }
+      });
+    });
+  }
+
+  async function loadAndRender(){
+    const d = getDate();
+    setQueryDate(d);
+    document.getElementById("status").textContent = "불러오는 중…";
+    const data = await apiGrid(d);
+    const groups = groupByRoom(data);
+    renderCards(groups, d);
+    document.getElementById("status").textContent = `로딩 완료 · ${data.rooms.length}개 교리실`;
+  }
+
+  // init
+  const dateEl = document.getElementById("date");
+  dateEl.value = qs.get("date") || todayIso();
+  dateEl.addEventListener("change", () => loadAndRender());
+  document.getElementById("btn-today").addEventListener("click", () => { dateEl.value = todayIso(); loadAndRender(); });
+  document.getElementById("btn-refresh").addEventListener("click", () => loadAndRender());
+  document.getElementById("btn-office").addEventListener("click", () => {
+    const d = getDate();
+    location.href = `/office/?date=${encodeURIComponent(d)}`;
+  });
+
+  loadAndRender().catch(err => {
+    document.getElementById("status").textContent = "오류: " + (err.message || err);
+    console.error(err);
+  });
+</script>
+</body>
+</html>

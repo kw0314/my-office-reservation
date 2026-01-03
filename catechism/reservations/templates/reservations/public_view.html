@@ -1,0 +1,148 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>교리실 예약 현황</title>
+  <style>
+    body { font-family: system-ui, -apple-system, Segoe UI, Roboto, sans-serif; margin: 16px; }
+    .topbar { display:flex; gap:12px; align-items:center; flex-wrap:wrap; margin-bottom: 12px; }
+    .grid-wrap { border:1px solid #ddd; overflow:auto; max-height: 80vh; }
+    table { border-collapse: collapse; width: 100%; min-width: 1100px; }
+    th, td { border:1px solid #e5e5e5; padding: 6px; font-size: 12px; }
+    th { position: sticky; top: 0; background: #fafafa; z-index: 2; }
+    td.room { position: sticky; left: 0; background: #fff; z-index: 1; min-width: 140px; }
+    .cell { height: 34px; min-width: 60px; }
+    .busy { background: #f3f3ff; }
+    .blocked { background: #fff3f3; }
+    .label { font-weight: 600; }
+    .muted { color:#666; font-size: 12px; }
+    .pill { display:inline-block; padding: 2px 6px; border-radius: 999px; background:#eee; font-size: 12px; }
+  </style>
+</head>
+<body>
+  <div class="topbar">
+    <h2 style="margin:0;">교리실 예약 현황</h2>
+    <form method="get" action="/view/">
+      <label class="muted">날짜</label>
+      <input type="date" name="date" value="{{ selected_date }}" />
+      <button type="submit">보기</button>
+    </form>
+    <span class="pill" id="range-pill"></span>
+  </div>
+
+  <div class="grid-wrap">
+    <table id="grid">
+      <thead></thead>
+      <tbody></tbody>
+    </table>
+  </div>
+
+  <script>
+    const selectedDate = "{{ selected_date }}";
+
+    function parseISO(s){ return new Date(s); }
+
+    async function load() {
+      const res = await fetch(`/api/public/grid?date=${encodeURIComponent(selectedDate)}`);
+      const data = await res.json();
+
+      document.getElementById("range-pill").textContent =
+        `${data.date}  ${data.open}–${data.close}  (30분 단위)`;
+
+      const thead = document.querySelector("#grid thead");
+      const tbody = document.querySelector("#grid tbody");
+      thead.innerHTML = "";
+      tbody.innerHTML = "";
+
+      // Header row
+      const trh = document.createElement("tr");
+      const th0 = document.createElement("th");
+      th0.textContent = "교리실";
+      trh.appendChild(th0);
+
+      data.slots.forEach(t => {
+        const th = document.createElement("th");
+        th.textContent = t;
+        trh.appendChild(th);
+      });
+      thead.appendChild(trh);
+
+      // Build quick lookup per room/slot
+      const slotIndex = {};
+      data.slots.forEach((t, idx) => slotIndex[t] = idx);
+
+      // Prepare blocks & reservations mapped by room_id to ranges
+      const byRoom = {};
+      data.rooms.forEach(r => byRoom[r.id] = {reservations:[], blocks:[]});
+
+      data.reservations.forEach(r => {
+        if (byRoom[r.room_id]) byRoom[r.room_id].reservations.push(r);
+      });
+
+      data.blocks.forEach(b => {
+        // room_id null => all rooms
+        if (b.room_id === null) {
+          data.rooms.forEach(r => byRoom[r.id].blocks.push(b));
+        } else if (byRoom[b.room_id]) {
+          byRoom[b.room_id].blocks.push(b);
+        }
+      });
+
+      // Render rows
+      data.rooms.forEach(room => {
+        const tr = document.createElement("tr");
+
+        const tdRoom = document.createElement("td");
+        tdRoom.className = "room";
+        tdRoom.innerHTML = `<span class="label">${room.name}</span>`;
+        tr.appendChild(tdRoom);
+
+        // create empty cells
+        const cells = [];
+        for (let i=0; i<data.slots.length; i++){
+          const td = document.createElement("td");
+          td.className = "cell";
+          td.dataset.slot = data.slots[i];
+          cells.push(td);
+          tr.appendChild(td);
+        }
+
+        // helper: mark ranges
+        function markRange(item, cls, text) {
+          const s = parseISO(item.start_at);
+          const e = parseISO(item.end_at);
+
+          // build slot labels in local time HH:MM
+          const ss = String(s.getHours()).padStart(2,"0")+":"+String(s.getMinutes()).padStart(2,"0");
+          const ee = String(e.getHours()).padStart(2,"0")+":"+String(e.getMinutes()).padStart(2,"0");
+
+          const si = slotIndex[ss];
+          const ei = slotIndex[ee];
+          if (si === undefined) return;
+
+          // if end == close, ei may be undefined; treat as end of grid
+          const endIdx = (ei === undefined) ? data.slots.length : ei;
+
+          for (let i=si; i<endIdx; i++){
+            cells[i].classList.add(cls);
+            if (i === si && text) cells[i].textContent = text;
+          }
+        }
+
+        // blocks first (so reservations can still show text; but keep blocked style)
+        byRoom[room.id].blocks.forEach(b => markRange(b, "blocked", b.reason ? `사용불가` : "사용불가"));
+        byRoom[room.id].reservations.forEach(r => markRange(r, "busy", r.title));
+
+        tbody.appendChild(tr);
+      });
+    }
+
+    load().catch(err => {
+      console.error(err);
+      alert("데이터를 불러오지 못했습니다.");
+    });
+  </script>
+</body>
+</html>
+

@@ -1,0 +1,312 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8"/>
+  <meta name="viewport" content="width=device-width,initial-scale=1"/>
+  <title>교리실 {{ room.id }} 예약</title>
+  <style>
+    :root{
+      --bg:#0b0f14; --card:#121a24; --muted:#93a4b7; --fg:#eaf2ff;
+      --accent:#7dd3fc; --danger:#fb7185; --ok:#34d399; --line:rgba(255,255,255,.10);
+    }
+    *{box-sizing:border-box}
+    body{margin:0;background:linear-gradient(180deg,#0b0f14,#0b0f14 45%,#0a1220);color:var(--fg);
+      font-family:ui-sans-serif,system-ui,-apple-system,"Noto Sans KR",Segoe UI,Roboto,Arial,sans-serif}
+    a{color:var(--accent);text-decoration:none}
+    header{position:sticky;top:0;z-index:10;background:rgba(11,15,20,.75);backdrop-filter:blur(10px);
+      border-bottom:1px solid var(--line)}
+    .wrap{max-width:1100px;margin:0 auto;padding:16px}
+    h1{margin:0;font-size:18px;font-weight:900;letter-spacing:-.2px}
+    .sub{color:var(--muted);font-size:13px;margin-top:6px}
+    .bar{display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-top:12px}
+    input[type="date"]{background:rgba(18,26,36,.92);color:var(--fg);border:1px solid var(--line);border-radius:12px;
+      padding:10px 12px;font:inherit}
+    button{background:rgba(125,211,252,.15);color:var(--fg);border:1px solid rgba(125,211,252,.25);border-radius:12px;
+      padding:10px 12px;font:inherit;cursor:pointer}
+    button:hover{filter:brightness(1.08)}
+    .ghost{background:transparent;border:1px solid var(--line)}
+    .danger{background:rgba(251,113,133,.16);border-color:rgba(251,113,133,.30)}
+    .status{margin-top:10px;color:var(--muted);font-size:13px}
+    .err{color:#ffb4b4}
+    .ok{color:#b7ffcf}
+    .list{display:grid;gap:10px;margin-top:12px}
+    .item{background:rgba(18,26,36,.92);border:1px solid var(--line);border-radius:14px;padding:12px;cursor:pointer}
+    .item:hover{border-color:rgba(255,255,255,.18)}
+    .row{display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap}
+    .time{font-variant-numeric:tabular-nums;color:#cfe5ff;font-weight:800}
+    .rid{color:var(--muted);font-size:12px}
+    .title{margin-top:6px;font-weight:800}
+    .note{margin-top:6px;color:var(--muted);font-size:13px;white-space:pre-wrap}
+
+    /* modal */
+    .backdrop{position:fixed;inset:0;background:rgba(0,0,0,.55);display:none;align-items:center;justify-content:center;padding:18px}
+    .modal{width:min(760px,100%);background:#0f1733;border:1px solid rgba(255,255,255,.12);border-radius:16px;padding:16px}
+    .mhead{display:flex;justify-content:space-between;align-items:center;gap:10px}
+    .mhead h2{margin:0;font-size:16px}
+    .grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:12px}
+    .grid label{display:block;font-size:12px;color:var(--muted);margin-bottom:6px}
+    .grid input,.grid textarea{
+      width:100%;box-sizing:border-box;background:rgba(18,26,36,.92);color:var(--fg);
+      border:1px solid var(--line);border-radius:12px;padding:10px 12px;font:inherit
+    }
+    textarea{min-height:90px;resize:vertical}
+    .actions{margin-top:12px;display:flex;gap:10px;justify-content:flex-end;flex-wrap:wrap}
+    @media (max-width:760px){ .grid{grid-template-columns:1fr} }
+  </style>
+</head>
+<body>
+<header>
+  <div class="wrap">
+    <div style="display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap;align-items:flex-end">
+      <div>
+        <div class="sub"><a href="/office/rooms/">← 교리실 목록</a></div>
+        <h1>교리실 {{ room.id }} 예약 현황</h1>
+        <div class="sub">{{ room.name|default:"" }}</div>
+      </div>
+      <div class="sub">예약을 클릭하면 수정/취소가 가능합니다.</div>
+    </div>
+
+    <div class="bar">
+      <label class="sub">날짜</label>
+      <input id="date" type="date"/>
+      <button id="btn-today">오늘</button>
+      <button id="btn-refresh" class="ghost">새로고침</button>
+      <a class="ghost" style="padding:10px 12px;border-radius:12px;border:1px solid var(--line)" href="/office/">전체 그리드</a>
+    </div>
+
+    <div id="status" class="status"></div>
+  </div>
+</header>
+
+<main class="wrap">
+  <div id="list" class="list"></div>
+</main>
+
+<!-- modal -->
+<div id="backdrop" class="backdrop" role="dialog" aria-modal="true">
+  <div class="modal">
+    <div class="mhead">
+      <h2 id="mtitle">예약 수정</h2>
+      <button id="mclose" class="ghost">닫기</button>
+    </div>
+
+    <div class="grid">
+      <div>
+        <label>제목</label>
+        <input id="f_title" type="text" placeholder="예: 3학년 교리"/>
+      </div>
+      <div>
+        <label>취소 PIN (취소 시 필요)</label>
+        <input id="f_pin" type="password" placeholder="PIN"/>
+      </div>
+
+      <div>
+        <label>시작(로컬)</label>
+        <input id="f_start" type="datetime-local"/>
+      </div>
+      <div>
+        <label>종료(로컬)</label>
+        <input id="f_end" type="datetime-local"/>
+      </div>
+
+      <div style="grid-column:1/-1">
+        <label>내부 메모</label>
+        <textarea id="f_note" placeholder="내부 메모"></textarea>
+      </div>
+    </div>
+
+    <div id="mmsg" class="status err" style="margin-top:10px"></div>
+
+    <div class="actions">
+      <button id="btn-cancel-modal" class="ghost">닫기</button>
+      <button id="btn-cancel" class="danger">예약 취소</button>
+      <button id="btn-save">저장</button>
+    </div>
+  </div>
+</div>
+
+<script>
+  const ROOM_ID = {{ room.id }};
+  const qs = new URLSearchParams(location.search);
+  const todayIso = () => new Date().toISOString().slice(0,10);
+
+  const dateEl = document.getElementById("date");
+  const statusEl = document.getElementById("status");
+  const listEl = document.getElementById("list");
+
+  const backdrop = document.getElementById("backdrop");
+  const mclose = document.getElementById("mclose");
+  const btnCancelModal = document.getElementById("btn-cancel-modal");
+  const btnSave = document.getElementById("btn-save");
+  const btnCancel = document.getElementById("btn-cancel");
+  const mmsg = document.getElementById("mmsg");
+
+  const fTitle = document.getElementById("f_title");
+  const fPin   = document.getElementById("f_pin");
+  const fStart = document.getElementById("f_start");
+  const fEnd   = document.getElementById("f_end");
+  const fNote  = document.getElementById("f_note");
+
+  let current = null;
+
+  function isoToLocalInput(iso){
+    const d = new Date(iso);
+    const pad = n => String(n).padStart(2,"0");
+    return `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+  }
+
+  function localInputToISO(v){
+    // datetime-local -> UTC ISO string. 서버에서 TZ 보정/저장 로직이 있으므로 OK.
+    return new Date(v).toISOString();
+  }
+
+  function setQueryDate(d){
+    const u = new URL(location.href);
+    u.searchParams.set("date", d);
+    history.replaceState(null, "", u.toString());
+  }
+
+  function openModal(res){
+    current = res;
+    mmsg.textContent = "";
+    fTitle.value = res.title || "";
+    fNote.value  = res.note_internal || "";
+    fPin.value   = "";
+    fStart.value = isoToLocalInput(res.start_at);
+    fEnd.value   = isoToLocalInput(res.end_at);
+    backdrop.style.display = "flex";
+    fTitle.focus();
+  }
+  function closeModal(){
+    backdrop.style.display = "none";
+    current = null;
+  }
+  mclose.onclick = closeModal;
+  btnCancelModal.onclick = closeModal;
+  backdrop.addEventListener("click", (e)=>{ if(e.target === backdrop) closeModal(); });
+
+  async function apiGrid(date){
+    const res = await fetch(`/api/office/grid?date=${encodeURIComponent(date)}`, {cache:"no-store"});
+    const txt = await res.text();
+    let data = null;
+    try{ data = txt ? JSON.parse(txt) : null; }catch(e){}
+    if (!res.ok || !data){
+      throw new Error(`Grid API failed: HTTP ${res.status} ${txt.slice(0,200)}`);
+    }
+    return data;
+  }
+
+  function formatTime(iso){
+    const d = new Date(iso);
+    return d.toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'});
+  }
+
+  function renderList(reservations){
+    listEl.innerHTML = "";
+    if(!reservations.length){
+      listEl.innerHTML = `<div class="status">이 날짜에는 예약이 없습니다.</div>`;
+      return;
+    }
+    reservations.forEach(r=>{
+      const el = document.createElement("div");
+      el.className = "item";
+      el.onclick = ()=>openModal(r);
+      el.innerHTML = `
+        <div class="row">
+          <div class="time">${formatTime(r.start_at)} ~ ${formatTime(r.end_at)}</div>
+          <div class="rid">#${r.id}</div>
+        </div>
+        <div class="title">${(r.title || "(제목 없음)")}</div>
+        ${r.note_internal ? `<div class="note">${r.note_internal}</div>` : ""}
+      `;
+      listEl.appendChild(el);
+    });
+  }
+
+  async function load(){
+    const d = dateEl.value || todayIso();
+    setQueryDate(d);
+
+    statusEl.classList.remove("err","ok");
+    statusEl.textContent = "불러오는 중...";
+    listEl.innerHTML = "";
+
+    const data = await apiGrid(d);
+    const resv = (data.reservations || []).filter(x => String(x.room_id) === String(ROOM_ID))
+                                         .sort((a,b)=> (a.start_at||"").localeCompare(b.start_at||""));
+    renderList(resv);
+    statusEl.textContent = `총 ${resv.length}건`;
+  }
+
+  document.getElementById("btn-today").addEventListener("click", () => { dateEl.value = todayIso(); load().catch(showErr); });
+  document.getElementById("btn-refresh").addEventListener("click", () => load().catch(showErr));
+  dateEl.addEventListener("change", () => load().catch(showErr));
+
+  function showErr(err){
+    statusEl.classList.add("err");
+    statusEl.textContent = "오류: " + (err?.message || err);
+    console.error(err);
+  }
+
+  btnSave.addEventListener("click", async ()=>{
+    if(!current) return;
+    mmsg.textContent = "";
+
+    const payload = {
+      room_id: ROOM_ID,
+      start_at: localInputToISO(fStart.value),
+      end_at: localInputToISO(fEnd.value),
+      title: fTitle.value.trim(),
+      note_internal: fNote.value.trim(),
+    };
+
+    const res = await fetch(`/api/office/reservations/${current.id}`, {
+      method: "POST",
+      headers: {"Content-Type":"application/json"},
+      body: JSON.stringify(payload),
+    });
+    const txt = await res.text();
+    let data = null;
+    try{ data = txt ? JSON.parse(txt) : null; }catch(e){}
+    if(!res.ok || !data || data.ok !== true){
+      mmsg.textContent = (data && data.error) ? data.error : (txt || "저장 실패");
+      return;
+    }
+    closeModal();
+    statusEl.classList.add("ok");
+    statusEl.textContent = "저장되었습니다.";
+    await load();
+  });
+
+  btnCancel.addEventListener("click", async ()=>{
+    if(!current) return;
+    mmsg.textContent = "";
+    const pin = fPin.value.trim();
+    if(!pin){ mmsg.textContent = "취소 PIN을 입력해주세요."; return; }
+    if(!confirm("정말 이 예약을 취소하시겠습니까?")) return;
+
+    const payload = { cancel_pin: pin, scope: "single" };
+    const res = await fetch(`/api/office/reservations/${current.id}/cancel`, {
+      method: "POST",
+      headers: {"Content-Type":"application/json"},
+      body: JSON.stringify(payload),
+    });
+    const txt = await res.text();
+    let data = null;
+    try{ data = txt ? JSON.parse(txt) : null; }catch(e){}
+    if(!res.ok || !data || data.ok !== true){
+      mmsg.textContent = (data && data.error) ? data.error : (txt || "취소 실패");
+      return;
+    }
+    closeModal();
+    statusEl.classList.add("ok");
+    statusEl.textContent = "예약이 취소되었습니다.";
+    await load();
+  });
+
+  // init
+  dateEl.value = qs.get("date") || todayIso();
+  load().catch(showErr);
+</script>
+</body>
+</html>
