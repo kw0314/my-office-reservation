@@ -1413,28 +1413,23 @@ function renderGrid(){
 
           // If series update was requested and server applied it, update any currently-loaded instances
           try {
-            if (scope === "series" && out && out.ok && payload && payload.series_id){
-              const sid = payload.series_id;
-              const anchor = state.resById[resId] || state.currentEdit;
-              if (anchor && anchor.series_id === sid){
-                const newStart = parseISO(startAt);
-                const oldAnchorStart = parseISO(anchor.start_at);
-                const deltaMs = newStart.getTime() - oldAnchorStart.getTime();
-                state.data.reservations.forEach(r => {
-                  if (r.series_id === sid){
-                    const rs = parseISO(r.start_at);
-                    const re = parseISO(r.end_at);
-                    r.start_at = new Date(rs.getTime() + deltaMs).toISOString();
-                    r.end_at = new Date(re.getTime() + deltaMs).toISOString();
-                    if (title) r.title = title;
-                    if (note) r.note_internal = note;
-                    state.resById[r.id] = r;
-                  }
-                });
-                renderGrid();
-              }
+            if (scope === "series" && out && out.ok && Array.isArray(out.updated)){
+              out.updated.forEach(u => {
+                const id = String(u.id);
+                const existing = state.resById[id];
+                if (existing){
+                  existing.start_at = u.start_at;
+                  existing.end_at = u.end_at;
+                  existing.title = u.title;
+                  existing.note_internal = u.note_internal || existing.note_internal;
+                  state.resById[id] = existing;
+                  const idx = state.data.reservations.findIndex(rr => String(rr.id) === id);
+                  if (idx !== -1) state.data.reservations[idx] = existing;
+                }
+              });
+              renderGrid();
             }
-          } catch(e){ console.warn("series client-side update failed:", e); }
+          } catch(e){ console.warn("series client-side apply failed:", e); }
 
           closeModal(); await load(); clearSelection(); return;
         }

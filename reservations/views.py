@@ -300,7 +300,18 @@ def office_update_reservation(request: HttpRequest, rid) -> JsonResponse:
                 ip=request.META.get("REMOTE_ADDR"),
             )
             print(f"Series update applied: {len(updated_items)} instances (series_id={series_id})")
-            return JsonResponse({"ok": True, "count": len(updated_items)})
+            updated_list = []
+            for u in updated_items:
+                updated_list.append({
+                    "id": str(u.id),
+                    "room_id": str(u.room_id),
+                    "start_at": timezone.localtime(u.start_at, TZ).isoformat(),
+                    "end_at": timezone.localtime(u.end_at, TZ).isoformat(),
+                    "title": u.title,
+                    "note_internal": u.note_internal,
+                    "series_id": str(u.series_id) if u.series_id else None,
+                })
+            return JsonResponse({"ok": True, "count": len(updated_items), "updated": updated_list})
 
         # Single reservation update (PIN already verified above)
         services.update_reservation(
