@@ -171,6 +171,91 @@
   border-color:#777;
 }
 
+/* === Sidebar Calendar === */
+.grid-wrap {
+  display: flex;
+  gap: 12px;
+}
+.sidebar-calendar {
+  flex: 0 0 220px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 12px;
+  border: 1px solid #ddd;
+  border-radius: 8px;
+  background: #fafafa;
+}
+.calendar-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+.calendar-header h4 {
+  margin: 0;
+  font-size: 14px;
+  font-weight: 600;
+  flex: 1;
+  text-align: center;
+  min-width: 100px;
+}
+.calendar-header .nav-btn {
+  flex: 0 0 32px;
+  height: 32px;
+  padding: 0;
+  border: 1px solid #ccc;
+  background: #fff;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 14px;
+  font-weight: 600;
+  color: #333;
+}
+.calendar-header .nav-btn:hover {
+  background: #f0f0f0;
+  border-color: #999;
+}
+#calendar {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 4px;
+}
+.cal-day {
+  aspect-ratio: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 4px;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  background: #fff;
+  cursor: pointer;
+  font-size: 12px;
+  font-weight: 500;
+  transition: all 0.2s;
+}
+.cal-day:hover {
+  background: #e8f5e9;
+  border-color: #4caf50;
+}
+.cal-day.other-month {
+  color: #ccc;
+  background: #f5f5f5;
+  cursor: default;
+}
+.cal-day.today {
+  background: #fff3e0;
+  border-color: #ff9800;
+  font-weight: 600;
+}
+.cal-day.selected {
+  background: #1f7a3a;
+  color: #fff;
+  border-color: #1f7a3a;
+  font-weight: 600;
+}
+
 </style>
 </head>
 <body>
@@ -181,7 +266,6 @@
       <input type="date" id="date" name="date" value="{{ selected_date }}" />
       <button type="button" class="btn-today" id="btn-today">오늘</button>
       <span id="selected-date-badge" class="date-badge" aria-live="polite"></span>
-      <button type="submit">보기</button>
     </form>
     <span class="pill" id="range-pill"></span>
     <span class="muted"> 빈칸 클릭 → 예약 생성 / 예약 블록 클릭 → 수정/취소 · (수정) 시간변경/리사이즈 가능</span>
@@ -200,6 +284,14 @@
   </div>
 
   <div class="grid-wrap">
+    <aside class="sidebar-calendar">
+      <div class="calendar-header">
+        <button type="button" class="nav-btn" id="cal-prev">❮</button>
+        <h4 id="cal-month"></h4>
+        <button type="button" class="nav-btn" id="cal-next">❯</button>
+      </div>
+      <div id="calendar"></div>
+    </aside>
     <table id="grid">
       <thead></thead>
       <tbody></tbody>
@@ -655,6 +747,79 @@ document.addEventListener("mouseup", () => { state.dragging = false; state.resiz
         opt.textContent = r.name;
         sel.appendChild(opt);
       });
+    }
+
+    // === Calendar Functions ===
+    let calendarViewDate = new Date();
+
+    function renderCalendar() {
+      const today = new Date();
+      const year = calendarViewDate.getFullYear();
+      const month = calendarViewDate.getMonth();
+      
+      // Update header
+      const monthNames = ["1월", "2월", "3월", "4월", "5월", "6월", "7월", "8월", "9월", "10월", "11월", "12월"];
+      document.getElementById("cal-month").textContent = `${year}년 ${monthNames[month]}`;
+      
+      // Get selected date
+      const selectedDate = getSelectedDate();
+      const [selYear, selMonth, selDay] = selectedDate.split("-");
+      const selDate = `${selYear}-${String(parseInt(selMonth)).padStart(2,"0")}-${String(parseInt(selDay)).padStart(2,"0")}`;
+      
+      // Get today
+      const todayStr = today.getFullYear() + "-" + String(today.getMonth()+1).padStart(2,"0") + "-" + String(today.getDate()).padStart(2,"0");
+      
+      // First day of month
+      const firstDay = new Date(year, month, 1);
+      const lastDay = new Date(year, month + 1, 0);
+      const startDate = new Date(firstDay);
+      startDate.setDate(startDate.getDate() - firstDay.getDay());
+      
+      const calendarEl = document.getElementById("calendar");
+      calendarEl.innerHTML = "";
+      
+      let current = new Date(startDate);
+      for (let i = 0; i < 42; i++) {
+        const day = document.createElement("div");
+        day.className = "cal-day";
+        day.textContent = current.getDate();
+        
+        const yearStr = current.getFullYear();
+        const monthStr = String(current.getMonth() + 1).padStart(2, "0");
+        const dayStr = String(current.getDate()).padStart(2, "0");
+        const dateStr = `${yearStr}-${monthStr}-${dayStr}`;
+        
+        if (current.getMonth() !== month) {
+          day.classList.add("other-month");
+        }
+        if (dateStr === todayStr) {
+          day.classList.add("today");
+        }
+        if (dateStr === selDate) {
+          day.classList.add("selected");
+        }
+        
+        day.addEventListener("click", () => {
+          document.getElementById("date").value = dateStr;
+          renderSelectedDateBadge();
+          buildTime30Datalist();
+          renderCalendar();
+          if (typeof load === "function") load().catch(e => { console.error(e); });
+        });
+        
+        calendarEl.appendChild(day);
+        current.setDate(current.getDate() + 1);
+      }
+    }
+
+    function prevMonth() {
+      calendarViewDate.setMonth(calendarViewDate.getMonth() - 1);
+      renderCalendar();
+    }
+
+    function nextMonth() {
+      calendarViewDate.setMonth(calendarViewDate.getMonth() + 1);
+      renderCalendar();
     }
 
     async function load(){
@@ -1537,6 +1702,14 @@ function buildTime30Datalist(){
 document.addEventListener("DOMContentLoaded", () => {
   renderSelectedDateBadge();
   buildTime30Datalist();
+  
+  // === Initialize Calendar ===
+  calendarViewDate = new Date(getSelectedDate());
+  renderCalendar();
+  const btnPrev = document.getElementById("cal-prev");
+  const btnNext = document.getElementById("cal-next");
+  if (btnPrev) btnPrev.addEventListener("click", prevMonth);
+  if (btnNext) btnNext.addEventListener("click", nextMonth);
 
   // === Create bar buttons (Reserve / Cancel) ===
   // The create bar appears after selecting a contiguous time range.
