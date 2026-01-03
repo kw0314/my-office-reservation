@@ -256,6 +256,7 @@ def office_create_reservation(request: HttpRequest) -> JsonResponse:
 @require_http_methods(["PATCH"])
 def office_update_reservation(request: HttpRequest, rid) -> JsonResponse:
     data = _json(request)
+    print("UPDATE payload:", data)
     try:
         room = Room.objects.get(id=data["room_id"])
         start_at = _parse_dt(data["start_at"])
