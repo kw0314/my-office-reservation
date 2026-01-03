@@ -301,11 +301,6 @@
         </label>
       </div>
     </div>
-    <!-- <div class="row" id="time-change-row" style="display:none;">
-      <label></label>
-      <button type="button" class="secondary" id="btn-time" onclick="enableTimeChange()">시간 변경(드래그)</button>
-    </div> -->
-
     <div class="row">
       <label>단체명(공개)</label>
       <input id="title" type="text" placeholder="예: 초등부 3반" />
@@ -465,7 +460,6 @@ document.addEventListener("mouseup", () => { state.dragging = false; state.resiz
     }
 
     function setModalModeEdit(){
-      document.getElementById("time-change-row").style.display = "";
       document.getElementById("time-fields").style.display = "";
       document.getElementById("repeat-row").style.display = "none";
       document.getElementById("cancel-scope-row").style.display = "";
@@ -474,7 +468,7 @@ document.addEventListener("mouseup", () => { state.dragging = false; state.resiz
       document.getElementById("btn-save").textContent = "수정 저장";
       document.getElementById("modal-title").textContent = "예약 수정/취소";
       document.getElementById("modal-hint").textContent =
-        "시간 변경: '시간 변경(드래그)' → 그리드에서 새 범위 드래그.  리사이즈: 예약 블록 좌/우 끝에서 ↔ 커서로 드래그.";
+        "시간 변경: 모달의 시간 필드를 직접 수정하거나, 예약 블록 좌/우 끝에서 ↔ 커서로 드래그하여 리사이즈할 수 있습니다.";
     }
 
     function openCreate(roomId, startLabel, endLabel){
