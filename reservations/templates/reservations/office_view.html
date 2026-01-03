@@ -1558,7 +1558,8 @@ document.addEventListener("DOMContentLoaded", () => {
       try { if (typeof startEl.showPicker === "function") startEl.showPicker(); } catch(e){}
     });
     startEl.addEventListener("change", () => {
-      // start 변경 시 duration 기준으로 end 재계산
+      // start 변경 시 종료 시간 picker 옵션 재구성 + duration 기준으로 end 재계산
+      rebuildEndPickerFromStart_();
       syncEndFromDuration_();
     });
   }
