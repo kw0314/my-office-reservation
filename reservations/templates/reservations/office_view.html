@@ -405,12 +405,24 @@
 
     <div class="row" id="pin-row">
       <label>수정/취소 PIN(4자리)</label>
-      <input id="pin" type="password" inputmode="numeric" maxlength="4" placeholder="1234" />
+      <div style="display:flex; gap:8px; align-items:center;">
+        <input id="pin" type="password" inputmode="numeric" maxlength="4" placeholder="1234" style="flex:1;" />
+        <label style="display:flex; align-items:center; gap:4px; margin:0; font-weight:500;">
+          <input type="checkbox" id="pin-toggle" />
+          표시
+        </label>
+      </div>
     </div>
 
     <div class="row" id="new-pin-row" style="display:none;">
       <label>새 PIN(선택)</label>
-      <input id="new-pin" type="password" inputmode="numeric" maxlength="4" placeholder="변경할 때만 입력" />
+      <div style="display:flex; gap:8px; align-items:center;">
+        <input id="new-pin" type="password" inputmode="numeric" maxlength="4" placeholder="변경할 때만 입력" style="flex:1;" />
+        <label style="display:flex; align-items:center; gap:4px; margin:0; font-weight:500;">
+          <input type="checkbox" id="new-pin-toggle" />
+          표시
+        </label>
+      </div>
     </div>
 
     <div class="hint" id="modal-hint"></div>
@@ -1746,6 +1758,23 @@ document.addEventListener("DOMContentLoaded", () => {
 
   const btn = document.getElementById("btn-today");
   if (btn) btn.addEventListener("click", (e) => { e.preventDefault(); goToday(); });
+
+  // === PIN toggle visibility ===
+  const pinToggle = document.getElementById("pin-toggle");
+  const pinInput = document.getElementById("pin");
+  if (pinToggle && pinInput) {
+    pinToggle.addEventListener("change", () => {
+      pinInput.type = pinToggle.checked ? "text" : "password";
+    });
+  }
+
+  const newPinToggle = document.getElementById("new-pin-toggle");
+  const newPinInput = document.getElementById("new-pin");
+  if (newPinToggle && newPinInput) {
+    newPinToggle.addEventListener("change", () => {
+      newPinInput.type = newPinToggle.checked ? "text" : "password";
+    });
+  }
 
   // ✅ Initial load: fetch grid data
   if (typeof load === "function") {
