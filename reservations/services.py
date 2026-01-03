@@ -241,6 +241,49 @@ def update_reservation(*, reservation_id, room: Room, start_at, end_at, title: s
 
 
 @transaction.atomic
+def update_reservation_series(*, reservation_id, series_id: str, room: Room | None,
+                              title: str | None, note_internal: str | None,
+                              new_cancel_pin: str | None, device: AccessDevice | None, ip: str | None):
+    """
+    Update non-time fields for all reservations in a series (title, note, cancel pin).
+    Does NOT modify per-instance start/end times.
+
+    - `series_id` can be passed explicitly; `reservation_id` is used to locate the primary row and validate PIN prior to calling this service.
+    """
+    # Load all confirmed reservations in the series
+    qs = Reservation.objects.select_for_update().filter(series_id=series_id, status=Reservation.STATUS_CONFIRMED)
+    items = list(qs)
+    if not items:
+        raise ValidationError("No series reservations found.")
+
+    # Apply updates to each instance
+    for r in items:
+        if title is not None:
+            r.title = title.strip()
+        if note_internal is not None:
+            r.note_internal = note_internal.strip()
+        if new_cancel_pin:
+            r.set_cancel_pin(new_cancel_pin)
+        # validate (times are unchanged so this should pass)
+        r.full_clean()
+        r.save()
+
+    AuditLog.objects.create(
+        actor_type=AuditLog.ACTOR_DEVICE if device else AuditLog.ACTOR_ADMIN,
+        actor_label=(device.label if device else "office"),
+        action="reservation_update_series",
+        reservation=items[0],
+        ip=ip,
+        detail={
+            "series_id": str(series_id),
+            "count": len(items),
+            "title": title,
+        },
+    )
+    return items
+
+
+@transaction.atomic
 def cancel_reservation(*, reservation_id, cancel_pin: str, device: AccessDevice | None, ip: str | None,
                        scope: str = "single"):
     r = Reservation.objects.select_for_update().get(id=reservation_id)

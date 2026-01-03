@@ -264,6 +264,40 @@ def office_update_reservation(request: HttpRequest, rid) -> JsonResponse:
         note = data.get("note_internal", "")
         new_pin = data.get("new_cancel_pin") or None
 
+        # PIN verification required for edits/cancels
+        cancel_pin = data.get("cancel_pin") or ""
+        # load target reservation to verify PIN and potentially series id
+        target = Reservation.objects.get(id=rid)
+        now = timezone.now()
+        if target.cancel_locked_until and now < target.cancel_locked_until:
+            raise ValidationError("Cancel PIN locked. Try again later.")
+        if not target.check_cancel_pin(cancel_pin):
+            target.cancel_fail_count += 1
+            if target.cancel_fail_count >= 3:
+                target.cancel_locked_until = now + timedelta(minutes=5)
+                target.cancel_fail_count = 0
+            target.save(update_fields=["cancel_fail_count", "cancel_locked_until", "updated_at"])
+            raise ValidationError("Invalid cancel PIN.")
+
+        # scope handling: if series, apply series-wide update (title/note/new_pin)
+        scope = str(data.get("scope") or "single").lower()
+        if scope == "series":
+            series_id = data.get("series_id") or str(target.series_id) if target.series_id else None
+            if not series_id:
+                raise ValidationError("No series_id available for series update.")
+            services.update_reservation_series(
+                reservation_id=rid,
+                series_id=series_id,
+                room=None,
+                title=title,
+                note_internal=note,
+                new_cancel_pin=new_pin,
+                device=None,
+                ip=request.META.get("REMOTE_ADDR"),
+            )
+            return JsonResponse({"ok": True})
+
+        # Single reservation update (PIN already verified above)
         services.update_reservation(
             reservation_id=rid,
             room=room, start_at=start_at, end_at=end_at,
