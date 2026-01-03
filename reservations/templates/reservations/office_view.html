@@ -734,10 +734,10 @@ function rebuildEndPickerFromStart_(){
     return;
   }
 
-  // Only times strictly greater than start
+  // Only times at least 30 minutes after start
   for (const t of slots){
     const m = minutesFromHHMM_(t);
-    if (m !== null && m > sMin){
+    if (m !== null && m >= sMin + 30){
       const opt = document.createElement("option");
       opt.value = t;
       dlEnd.appendChild(opt);
