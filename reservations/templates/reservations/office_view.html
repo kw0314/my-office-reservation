@@ -548,6 +548,12 @@
           style="border:none;padding:0;box-shadow:none;"></span>
         <button type="button" class="btn-today" id="btn-today" style="padding:4px 8px;font-size:12px;">오늘</button>
       </div>
+      <div style="display:flex; gap:4px; margin-bottom:8px;">
+        <button type="button" onclick="moveDate(-7)" style="flex:1; padding:6px 0; font-size:12px;">-1주</button>
+        <button type="button" onclick="moveDate(-1)" style="flex:1; padding:6px 0; font-size:12px;">-1일</button>
+        <button type="button" onclick="moveDate(1)" style="flex:1; padding:6px 0; font-size:12px;">+1일</button>
+        <button type="button" onclick="moveDate(7)" style="flex:1; padding:6px 0; font-size:12px;">+1주</button>
+      </div>
       <div class="calendar-header">
         <button type="button" class="nav-btn" id="cal-prev">❮</button>
         <h4 id="cal-month"></h4>
@@ -1990,6 +1996,32 @@
       buildTime30Datalist();
       if (typeof load === "function") {
         try { await load(); } catch (e) { console.error(e); alert("데이터를 불러오지 못했습니다."); }
+      }
+    }
+
+    async function moveDate(delta) {
+      const el = document.getElementById("date");
+      if (!el) return;
+      let val = el.value;
+      if (!/^\d{4}-\d{2}-\d{2}$/.test(val)) val = todayStr();
+
+      const d = new Date(val + "T00:00:00");
+      d.setDate(d.getDate() + delta);
+
+      const y = d.getFullYear();
+      const m = String(d.getMonth() + 1).padStart(2, "0");
+      const da = String(d.getDate()).padStart(2, "0");
+      el.value = `${y}-${m}-${da}`;
+
+      // Update calendar view to match new date
+      calendarViewDate = new Date(d);
+      renderCalendar();
+
+      renderSelectedDateBadge();
+      buildTime30Datalist();
+
+      if (typeof load === "function") {
+        try { await load(); } catch (e) { console.error(e); }
       }
     }
 
