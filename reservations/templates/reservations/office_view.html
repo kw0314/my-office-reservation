@@ -450,6 +450,49 @@
       display: flex;
     }
 
+    /* Collapsed navigation buttons */
+    .sidebar-collapsed-nav {
+      display: none;
+      flex-direction: column;
+      align-items: center;
+      gap: 8px;
+      margin-top: 20px;
+    }
+
+    .sidebar-calendar.collapsed .sidebar-collapsed-nav {
+      display: flex;
+    }
+
+    .collapsed-nav-btn {
+      writing-mode: vertical-rl;
+      text-orientation: upright;
+      padding: 8px 4px;
+      border: 1px solid #ccc;
+      border-radius: 4px;
+      background: #fff;
+      cursor: pointer;
+      font-size: 11px;
+      font-weight: 600;
+      color: #333;
+      min-height: 50px;
+      transition: all 0.2s;
+    }
+
+    .collapsed-nav-btn:hover {
+      background: #f0f0f0;
+      border-color: #999;
+    }
+
+    .collapsed-nav-btn.today {
+      background: #111;
+      color: #fff;
+      border-color: #111;
+    }
+
+    .collapsed-nav-btn.today:hover {
+      filter: brightness(1.1);
+    }
+
     .sidebar-toggle {
       position: absolute;
       top: 15px;
@@ -620,9 +663,16 @@
 
       <!-- Collapsed vertical view -->
       <div class="sidebar-collapsed-content" id="sidebar-collapsed-content">
-        <span id="collapsed-today-btn"
-          style="cursor:pointer; padding:4px; border:1px solid #ccc; border-radius:4px;">오늘</span>
         <span id="collapsed-date-label"></span>
+      </div>
+
+      <!-- Collapsed navigation buttons -->
+      <div class="sidebar-collapsed-nav" id="sidebar-collapsed-nav">
+        <button type="button" class="collapsed-nav-btn" onclick="moveDate(-7)">-1주</button>
+        <button type="button" class="collapsed-nav-btn" onclick="moveDate(-1)">-1일</button>
+        <button type="button" class="collapsed-nav-btn today" onclick="goToday()">오늘</button>
+        <button type="button" class="collapsed-nav-btn" onclick="moveDate(1)">+1일</button>
+        <button type="button" class="collapsed-nav-btn" onclick="moveDate(7)">+1주</button>
       </div>
 
       <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;padding-left:32px;">
@@ -2392,9 +2442,6 @@
         }
       });
 
-
-      const colToday = document.getElementById("collapsed-today-btn");
-      if (colToday) colToday.addEventListener("click", (e) => { e.stopPropagation(); goToday(); });
 
       // Init collapsed view
       updateCollapsedView();
