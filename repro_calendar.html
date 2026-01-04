@@ -1,0 +1,93 @@
+<!doctype html>
+<html lang="ko">
+
+<head>
+    <meta charset="utf-8" />
+    <title>Calendar Repro</title>
+    <style>
+        body {
+            padding: 20px;
+            font-family: sans-serif;
+        }
+
+        #calendar {
+            display: grid;
+            grid-template-columns: repeat(7, 1fr);
+            gap: 4px;
+        }
+
+        .cal-day {
+            aspect-ratio: 1;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 4px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            background: #fff;
+            cursor: pointer;
+            font-size: 12px;
+            font-weight: 500;
+            transition: all 0.2s;
+        }
+
+        #calendar .cal-day.selected,
+        .cal-day.selected {
+            background-color: #1f7a3a !important;
+            border-color: #1f7a3a !important;
+            color: #fff !important;
+            font-weight: 600 !important;
+        }
+    </style>
+</head>
+
+<body>
+
+    <input type="text" id="date" value="2023-01-04" />
+    <div id="calendar"></div>
+
+    <script>
+        function getSelectedDate() {
+            return document.getElementById("date").value;
+        }
+
+        let calendarViewDate = new Date(2023, 0, 4);
+
+        function renderCalendar() {
+            const year = calendarViewDate.getFullYear();
+            const month = calendarViewDate.getMonth();
+            const selDate = getSelectedDate();
+
+            const firstDay = new Date(year, month, 1);
+            const startDate = new Date(firstDay);
+            startDate.setDate(startDate.getDate() - firstDay.getDay());
+
+            const calendarEl = document.getElementById("calendar");
+            calendarEl.innerHTML = "";
+
+            let current = new Date(startDate);
+            for (let i = 0; i < 42; i++) {
+                const day = document.createElement("div");
+                day.className = "cal-day";
+                day.textContent = current.getDate();
+
+                const yearStr = String(current.getFullYear()).padStart(4, "0");
+                const monthStr = String(current.getMonth() + 1).padStart(2, "0");
+                const dayStr = String(current.getDate()).padStart(2, "0");
+                const dateStr = `${yearStr}-${monthStr}-${dayStr}`;
+
+                if (dateStr === selDate) {
+                    day.classList.add("selected");
+                    console.log("Applied selected to", dateStr);
+                }
+
+                calendarEl.appendChild(day);
+                current.setDate(current.getDate() + 1);
+            }
+        }
+
+        renderCalendar();
+    </script>
+</body>
+
+</html>
