@@ -469,18 +469,13 @@
     }
 
     .sidebar-calendar.collapsed .sidebar-toggle {
-      /* in collapsed state, it stays at top left */
+      /* center in collapsed state */
+      left: 50%;
+      transform: translateX(-50%);
       border: 1px solid #ddd;
     }
 
-    .sidebar-calendar.collapsed .sidebar-toggle {
-      right: 4px;
-      /* inside the collapsed strip */
-      border: 1px solid #ddd;
-      border-radius: 4px;
-      width: 32px;
-      height: 32px;
-    }
+
 
     .calendar-header {
       display: flex;
