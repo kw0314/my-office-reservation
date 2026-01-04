@@ -48,10 +48,10 @@
       min-height: 0;
       /* critical: allow inner scrolling */
       border: 1px solid #ddd;
-      overflow: auto;
-      /* scroll only inside the grid */
+      /* overflow: auto; removed to allow sidebar to stay fixed */
       max-height: none;
       /* remove 70vh cap */
+      position: relative;
     }
 
     .topbar {
@@ -383,8 +383,16 @@
       gap: 12px;
     }
 
+    .table-scroll-area {
+      flex: 1;
+      overflow: auto;
+      position: relative;
+      min-height: 0;
+      /* allow flex child to scroll */
+    }
+
     .sidebar-calendar {
-      flex: 0 0 220px;
+      flex: 0 0 320px;
       display: flex;
       flex-direction: column;
       gap: 10px;
@@ -518,10 +526,12 @@
       </div>
       <div id="calendar"></div>
     </aside>
-    <table id="grid">
-      <thead></thead>
-      <tbody></tbody>
-    </table>
+    <div class="table-scroll-area">
+      <table id="grid">
+        <thead></thead>
+        <tbody></tbody>
+      </table>
+    </div>
   </div>
 
 
