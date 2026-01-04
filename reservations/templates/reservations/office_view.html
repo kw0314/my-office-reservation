@@ -773,13 +773,11 @@ document.addEventListener("mouseup", () => { state.dragging = false; state.resiz
       const monthNames = ["1월", "2월", "3월", "4월", "5월", "6월", "7월", "8월", "9월", "10월", "11월", "12월"];
       document.getElementById("cal-month").textContent = `${year}년 ${monthNames[month]}`;
       
-      // Get selected date - normalize format
-      const selectedDate = getSelectedDate();
-      const selParts = selectedDate.split("-");
-      const selDate = `${selParts[0]}-${selParts[1]}-${selParts[2]}`;
+      // Get selected date - already in YYYY-MM-DD format
+      const selDate = getSelectedDate();
       
       // Get today
-      const todayStr = today.getFullYear() + "-" + String(today.getMonth()+1).padStart(2,"0") + "-" + String(today.getDate()).padStart(2,"0");
+      const todayStr = String(today.getFullYear()).padStart(4, "0") + "-" + String(today.getMonth()+1).padStart(2,"0") + "-" + String(today.getDate()).padStart(2,"0");
       
       // First day of month
       const firstDay = new Date(year, month, 1);
@@ -796,7 +794,7 @@ document.addEventListener("mouseup", () => { state.dragging = false; state.resiz
         day.className = "cal-day";
         day.textContent = current.getDate();
         
-        const yearStr = current.getFullYear();
+        const yearStr = String(current.getFullYear()).padStart(4, "0");
         const monthStr = String(current.getMonth() + 1).padStart(2, "0");
         const dayStr = String(current.getDate()).padStart(2, "0");
         const dateStr = `${yearStr}-${monthStr}-${dayStr}`;
@@ -1716,7 +1714,9 @@ document.addEventListener("DOMContentLoaded", () => {
   buildTime30Datalist();
   
   // === Initialize Calendar ===
-  calendarViewDate = new Date(getSelectedDate());
+  const selDateStr = getSelectedDate();
+  const [selYear, selMonth, selDay] = selDateStr.split("-");
+  calendarViewDate = new Date(parseInt(selYear), parseInt(selMonth) - 1, parseInt(selDay));
   renderCalendar();
   const btnPrev = document.getElementById("cal-prev");
   const btnNext = document.getElementById("cal-next");
