@@ -1,0 +1,139 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8" />
+  <title>Calendar Repro</title>
+  <style>
+    body { padding: 20px; font-family: sans-serif; }
+    .sidebar-calendar {
+      width: 220px;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      padding: 12px;
+      border: 1px solid #ddd;
+      border-radius: 8px;
+      background: #fafafa;
+    }
+    .calendar-body {
+      display: grid;
+      grid-template-columns: repeat(7, 1fr);
+      gap: 2px;
+    }
+    .cal-day {
+      aspect-ratio: 1/1;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      border-radius: 6px;
+      font-size: 13px;
+      color: #333;
+      cursor: pointer;
+      border: 1px solid transparent;
+    }
+    
+    /* Generic .selected from line 36 */
+    .selected { outline: 2px solid #333; outline-offset: -2px; }
+
+    .cal-day:hover {
+      background: #e8f5e9;
+      border-color: #4caf50;
+    }
+    .cal-day.other-month {
+      color: #ccc;
+      background: #f5f5f5;
+      cursor: default;
+    }
+    .cal-day.today {
+      background: #fff3e0;
+      border-color: #ff9800;
+      font-weight: 600;
+    }
+
+    /* Selected styling from line 251 */
+    .cal-day.selected {
+      background: #1f7a3a !important;
+      color: #fff !important;
+      border-color: #1f7a3a !important;
+      font-weight: 600 !important;
+    }
+    .cal-day.today.selected {
+      background: #1f7a3a !important;
+      border-color: #1f7a3a !important;
+      color: #fff !important;
+    }
+  </style>
+</head>
+<body>
+
+  <input type="date" id="date" value="2023-01-04" />
+
+  <div class="sidebar-calendar">
+      <div id="calendar" class="calendar-body"></div>
+  </div>
+
+  <script>
+    function getSelectedDate(){
+      const el = document.getElementById("date");
+      return el.value;
+    }
+
+    let calendarViewDate = new Date(2023, 0, 4); // Jan 4 2023
+
+    function renderCalendar() {
+      const today = new Date(); // Real today
+      const year = calendarViewDate.getFullYear();
+      const month = calendarViewDate.getMonth();
+      
+      const selDate = getSelectedDate();
+      console.log("selDate:", selDate);
+      
+      // Fixed TodayStr for consistent testing (assume today is NOT selected for now, or is)
+      // Actually let's use real today logic or mock it.
+      // Mocking today to be something distinct if needed.
+      const todayStr = new Date().toISOString().split('T')[0];
+
+      const firstDay = new Date(year, month, 1);
+      const startDate = new Date(firstDay);
+      startDate.setDate(startDate.getDate() - firstDay.getDay());
+      
+      const calendarEl = document.getElementById("calendar");
+      calendarEl.innerHTML = "";
+      
+      let current = new Date(startDate);
+      for (let i = 0; i < 42; i++) {
+        const day = document.createElement("div");
+        day.className = "cal-day";
+        day.textContent = current.getDate();
+        
+        const yearStr = String(current.getFullYear()).padStart(4, "0");
+        const monthStr = String(current.getMonth() + 1).padStart(2, "0");
+        const dayStr = String(current.getDate()).padStart(2, "0");
+        const dateStr = `${yearStr}-${monthStr}-${dayStr}`;
+        
+        if (current.getMonth() !== month) {
+          day.classList.add("other-month");
+        }
+        if (dateStr === todayStr) {
+          day.classList.add("today");
+        }
+        if (dateStr === selDate) {
+          day.classList.add("selected");
+          console.log("Selected applied to", dateStr);
+        }
+        
+        calendarEl.appendChild(day);
+        current.setDate(current.getDate() + 1);
+      }
+    }
+
+    document.getElementById("date").addEventListener("change", () => {
+        const parts = document.getElementById("date").value.split("-");
+        calendarViewDate = new Date(parts[0], parts[1]-1, parts[2]);
+        renderCalendar();
+    });
+
+    renderCalendar();
+  </script>
+</body>
+</html>
