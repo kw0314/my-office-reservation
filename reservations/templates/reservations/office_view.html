@@ -2384,6 +2384,8 @@
           sideToggle.textContent = "▶";
           // remove manual style manipulations to rely on CSS
           sideToggle.removeAttribute("style");
+          // Update collapsed view to show current selected date
+          updateCollapsedView();
         } else {
           sideToggle.textContent = "◀";
           sideToggle.removeAttribute("style");
