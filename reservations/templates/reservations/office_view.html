@@ -434,16 +434,13 @@
 
     .sidebar-toggle {
       position: absolute;
-      top: 50%;
-      right: -12px;
-      /* transform: translateY(-50%); */
-      width: 24px;
-      height: 48px;
-      background: #fafafa;
+      top: 15px;
+      left: 10px;
+      width: 28px;
+      height: 28px;
+      background: #fff;
       border: 1px solid #ddd;
-      border-left: none;
-      /* merge with sidebar border */
-      border-radius: 0 8px 8px 0;
+      border-radius: 4px;
       cursor: pointer;
       display: flex;
       align-items: center;
@@ -451,6 +448,11 @@
       z-index: 10;
       font-size: 14px;
       color: #666;
+    }
+
+    .sidebar-calendar.collapsed .sidebar-toggle {
+      /* in collapsed state, it stays at top left */
+      border: 1px solid #ddd;
     }
 
     .sidebar-calendar.collapsed .sidebar-toggle {
@@ -599,7 +601,7 @@
   <div class="grid-wrap">
     <aside class="sidebar-calendar" id="sidebar-calendar">
       <button type="button" class="sidebar-toggle" id="sidebar-toggle" title="사이드바 접기/펼치기">◀</button>
-      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;padding-left:32px;">
         <span id="selected-date-badge" class="date-badge" aria-live="polite"
           style="border:none;padding:0;box-shadow:none;"></span>
         <button type="button" class="btn-today" id="btn-today" style="padding:4px 8px;font-size:12px;">오늘</button>
@@ -2332,16 +2334,11 @@
           sideBar.classList.toggle("collapsed");
           if (sideBar.classList.contains("collapsed")) {
             sideToggle.textContent = "▶";
-            sideToggle.style.right = "auto";
-            sideToggle.style.left = "50%";
-            sideToggle.style.transform = "translateX(-50%)";
-            sideToggle.style.borderLeft = "1px solid #ddd"; // restore border
+            // remove manual style manipulations to rely on CSS
+            sideToggle.removeAttribute("style");
           } else {
             sideToggle.textContent = "◀";
-            sideToggle.style.right = "-12px";
-            sideToggle.style.left = "auto";
-            sideToggle.style.transform = "none";
-            sideToggle.style.borderLeft = "none";
+            sideToggle.removeAttribute("style");
           }
         });
       }
