@@ -441,12 +441,18 @@
     function getSelectedDate(){
       const el = document.getElementById("date") || document.querySelector('input[type="date"][name="date"]');
       const v = el ? String(el.value || "").trim() : "";
-      if (/^\d{4}-\d{2}-\d{2}$/.test(v)) return v;
+      console.log("[getSelectedDate] input element value:", v, "element:", el);
+      if (/^\d{4}-\d{2}-\d{2}$/.test(v)) {
+        console.log("[getSelectedDate] returning input value:", v);
+        return v;
+      }
       const now = new Date();
       const y = now.getFullYear();
       const m = String(now.getMonth()+1).padStart(2,"0");
       const d = String(now.getDate()).padStart(2,"0");
-      return `${y}-${m}-${d}`;
+      const result = `${y}-${m}-${d}`;
+      console.log("[getSelectedDate] returning today:", result);
+      return result;
     }
 
     function ensureDateInputDefault(){
@@ -775,9 +781,11 @@ document.addEventListener("mouseup", () => { state.dragging = false; state.resiz
       
       // Get selected date - already in YYYY-MM-DD format
       const selDate = getSelectedDate();
+      console.log("[renderCalendar] selDate from getSelectedDate():", selDate);
       
       // Get today
       const todayStr = String(today.getFullYear()).padStart(4, "0") + "-" + String(today.getMonth()+1).padStart(2,"0") + "-" + String(today.getDate()).padStart(2,"0");
+      console.log("[renderCalendar] todayStr:", todayStr, "selDate:", selDate);
       
       // First day of month
       const firstDay = new Date(year, month, 1);
@@ -799,6 +807,8 @@ document.addEventListener("mouseup", () => { state.dragging = false; state.resiz
         const dayStr = String(current.getDate()).padStart(2, "0");
         const dateStr = `${yearStr}-${monthStr}-${dayStr}`;
         
+        if (i < 3) console.log("[renderCalendar] dateStr:", dateStr, "selDate:", selDate, "match:", dateStr === selDate);
+        
         if (current.getMonth() !== month) {
           day.classList.add("other-month");
         }
@@ -806,6 +816,7 @@ document.addEventListener("mouseup", () => { state.dragging = false; state.resiz
           day.classList.add("today");
         }
         if (dateStr === selDate) {
+          console.log("[renderCalendar] ✓ 선택된 날짜 매칭됨:", dateStr);
           day.classList.add("selected");
         }
         
@@ -1715,8 +1726,10 @@ document.addEventListener("DOMContentLoaded", () => {
   
   // === Initialize Calendar ===
   const selDateStr = getSelectedDate();
+  console.log("[init] selDateStr:", selDateStr);
   const [selYear, selMonth, selDay] = selDateStr.split("-");
   calendarViewDate = new Date(parseInt(selYear), parseInt(selMonth) - 1, parseInt(selDay));
+  console.log("[init] calendarViewDate:", calendarViewDate);
   renderCalendar();
   const btnPrev = document.getElementById("cal-prev");
   const btnNext = document.getElementById("cal-next");
