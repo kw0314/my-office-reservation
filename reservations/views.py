@@ -152,6 +152,7 @@ def office_grid_api(request: HttpRequest) -> JsonResponse:
             "end_at": timezone.localtime(r.end_at, TZ).isoformat(),
             "title": r.title,
             "note_internal": r.note_internal,
+            "color": r.color,
             "series_id": str(r.series_id) if r.series_id else None,
         })
 
@@ -215,6 +216,7 @@ def office_create_reservation(request: HttpRequest) -> JsonResponse:
         end_at = _parse_dt(data["end_at"])
         title = data.get("title", "")
         note = data.get("note_internal", "")
+        color = data.get("color", "#e3f2fd")
         cancel_pin = data.get("cancel_pin", "")
 
         # Optional recurrence fields
@@ -229,7 +231,7 @@ def office_create_reservation(request: HttpRequest) -> JsonResponse:
 
         created = services.create_reservation(
             room=room, start_at=start_at, end_at=end_at,
-            title=title, note_internal=note, cancel_pin=cancel_pin,
+            title=title, note_internal=note, cancel_pin=cancel_pin, color=color,
             device=None, ip=request.META.get("REMOTE_ADDR"),
             repeat_days=repeat_days, repeat_until=repeat_until,
         )
@@ -263,6 +265,7 @@ def office_update_reservation(request: HttpRequest, rid) -> JsonResponse:
         end_at = _parse_dt(data["end_at"])
         title = data.get("title", "")
         note = data.get("note_internal", "")
+        color = data.get("color")
         new_pin = data.get("new_cancel_pin") or None
 
         # PIN verification required for edits/cancels
@@ -295,6 +298,7 @@ def office_update_reservation(request: HttpRequest, rid) -> JsonResponse:
                 end_at=end_at,
                 title=title,
                 note_internal=note,
+                color=color,
                 new_cancel_pin=new_pin,
                 device=None,
                 ip=request.META.get("REMOTE_ADDR"),
@@ -317,7 +321,7 @@ def office_update_reservation(request: HttpRequest, rid) -> JsonResponse:
         services.update_reservation(
             reservation_id=rid,
             room=room, start_at=start_at, end_at=end_at,
-            title=title, note_internal=note, new_cancel_pin=new_pin,
+            title=title, note_internal=note, color=color, new_cancel_pin=new_pin,
             device=None, ip=request.META.get("REMOTE_ADDR"),
         )
         return JsonResponse({"ok": True})

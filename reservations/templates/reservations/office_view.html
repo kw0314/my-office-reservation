@@ -634,6 +634,32 @@
       /* ensure on top */
     }
 
+    /* Color options */
+    .color-picker {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+      margin-top: 4px;
+    }
+
+    .color-option {
+      width: 24px;
+      height: 24px;
+      border-radius: 50%;
+      border: 2px solid transparent;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+
+    .color-option.selected {
+      border-color: #333;
+      transform: scale(1.2);
+    }
+
+    .color-option:hover {
+      transform: scale(1.1);
+    }
+
     /* If both today and selected, selected takes priority */
     #calendar .cal-day.today.selected,
     .cal-day.today.selected {
@@ -824,6 +850,21 @@
         </label>
       </div>
     </div>
+    <div class="row">
+      <label>색상</label>
+      <div class="color-picker" id="color-picker">
+        <div class="color-option selected" style="background-color: #e3f2fd;" data-color="#e3f2fd"></div>
+        <div class="color-option" style="background-color: #e8f5e9;" data-color="#e8f5e9"></div>
+        <div class="color-option" style="background-color: #fff9c4;" data-color="#fff9c4"></div>
+        <div class="color-option" style="background-color: #ffecb3;" data-color="#ffecb3"></div>
+        <div class="color-option" style="background-color: #fce4ec;" data-color="#fce4ec"></div>
+        <div class="color-option" style="background-color: #f3e5f5;" data-color="#f3e5f5"></div>
+        <div class="color-option" style="background-color: #e0f2f1;" data-color="#e0f2f1"></div>
+        <div class="color-option" style="background-color: #f5f5f5;" data-color="#f5f5f5"></div>
+      </div>
+      <input type="hidden" id="selected-color" value="#e3f2fd" />
+    </div>
+
     <div class="row">
       <label>단체명(공개)</label>
       <input id="title" type="text" placeholder="예: 유스그룹" />
@@ -1114,6 +1155,12 @@
         document.getElementById("pin").value = "";
         document.getElementById("new-pin").value = "";
 
+        // Reset color to default
+        document.querySelectorAll('.color-option').forEach(el => el.classList.remove('selected'));
+        const defaultColor = "#e3f2fd";
+        document.querySelector(`.color-option[data-color="${defaultColor}"]`)?.classList.add('selected');
+        document.getElementById('selected-color').value = defaultColor;
+
         // repeat defaults
         const repEn = document.getElementById("repeat-enabled");
         const repOpts = document.getElementById("repeat-options");
@@ -1168,6 +1215,14 @@
       document.getElementById("note").value = r.note_internal || "";
       document.getElementById("pin").value = "";
       document.getElementById("new-pin").value = "";
+
+      // set color
+      document.querySelectorAll('.color-option').forEach(el => el.classList.remove('selected'));
+      const rColor = r.color || "#e3f2fd";
+      let opt = document.querySelector(`.color-option[data-color="${rColor}"]`);
+      if (!opt) opt = document.querySelector('.color-option'); // fallback to first
+      if (opt) opt.classList.add('selected');
+      document.getElementById('selected-color').value = rColor;
 
       // cancel scope UI
       const scopeRow = document.getElementById("cancel-scope-row");
@@ -1533,6 +1588,10 @@
 
         for (let i = si; i < endIdx; i++) {
           cells[i].classList.add(cls);
+          if (resId && item.color) {
+            cells[i].style.backgroundColor = item.color;
+            cells[i].style.borderColor = 'rgba(0,0,0,0.1)';
+          }
           if (resId) {
             cells[i].dataset.resId = resId;
             if (i === si) cells[i].dataset.edgeStart = "1";
@@ -1967,19 +2026,13 @@
         const startRaw = document.getElementById("start-at").value;
         const endRaw = document.getElementById("end-at")?.value || "";
         const durationMin = Number(document.getElementById("duration")?.value || 60);
-        // ✅ room_id는 숫자로
         const roomId = Number(roomIdRaw);
 
-        // ✅ 현재 UI 값이 뭔지 먼저 확인
-        console.log("[save] roomIdRaw=", roomIdRaw, "startRaw=", startRaw, "durationMin=", durationMin);
-
         const startAt = dtISOFromUI(dateRaw, String(startRaw || "").trim());
-        // endAt: prefer explicit end field; fallback to duration
         let endHH = String(endRaw || "").trim();
         if (!endHH) { endHH = addMinutesToHHMM_(String(startRaw || "").trim(), durationMin); }
         const endAt = dtISOFromUI(dateRaw, endHH);
 
-        // basic validation: end must be after start
         if (minutesBetweenHHMM_(String(startRaw || "").trim(), endHH) <= 0) {
           alert("종료 시간이 시작 시간보다 늦어야 합니다.");
           return;
@@ -1987,8 +2040,8 @@
 
         const title = document.getElementById("title").value;
         const note = document.getElementById("note").value;
-
-        console.log("[save] payload times:", startAt, endAt);
+        const color = document.getElementById("selected-color").value;
+        const pin = document.getElementById("pin").value;
 
         if (!title.trim()) {
           alert("단체명을 입력해 주세요.");
@@ -1996,7 +2049,7 @@
         }
 
         if (!resId) {
-          const pin = document.getElementById("pin").value;
+          // CREATE
           if (!/^\d{4}$/.test(pin)) {
             alert("수정/취소 PIN(비번)은 숫자 4자리입니다.");
             return;
@@ -2010,9 +2063,16 @@
             ? String(document.getElementById("repeat-until")?.value || "").trim()
             : "";
 
-          const payload = { room_id: roomId, start_at: startAt, end_at: endAt, title, note_internal: note, cancel_pin: pin };
+          const createPayload = {
+            room_id: roomId,
+            start_at: startAt,
+            end_at: endAt,
+            title,
+            note_internal: note,
+            color,
+            cancel_pin: pin
+          };
 
-          // repeat reservation (optional)
           if (repeatEnabled) {
             if (repeatDays.length === 0) {
               alert("반복 요일을 1개 이상 선택해 주세요.");
@@ -2022,37 +2082,31 @@
               alert("반복 종료일(언제까지)을 선택해 주세요.");
               return;
             }
-            // server expects repeat_days (0=Sun..6=Sat) and repeat_until (YYYY-MM-DD)
-            payload.repeat_days = repeatDays;
-            payload.repeat_until = repeatUntil;
+            createPayload.repeat_days = repeatDays;
+            createPayload.repeat_until = repeatUntil;
           }
 
           const resp = await fetch("/api/office/reservations", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
-            body: JSON.stringify(payload)
+            body: JSON.stringify(createPayload)
           });
 
-          // ✅ Response body는 한 번만 읽습니다 (clone() 금지)
           const rawText = await resp.text();
           let out = null;
           try { out = rawText ? JSON.parse(rawText) : null; }
-          catch (e) { out = { ok: false, error: "Invalid JSON from server", raw: rawText }; }
-
-          console.log("[save] status=", resp.status, out ?? rawText);
-
+          catch (e) { out = { ok: false, error: "Invalid JSON from server" }; }
 
           if (!resp.ok || !out || out.ok === false) {
-            const msg = (out && (out.error || out.detail || out.message)) ? (out.error || out.detail || out.message) : "저장 실패";
-            const extra = (out && out.raw) ? String(out.raw).slice(0, 500) : "";
-            alert(`${msg}\nHTTP ${resp.status}` + (extra ? `\n${extra}` : ""));
+            const msg = (out && out.error) ? out.error : "저장 실패";
+            alert(`${msg}\nHTTP ${resp.status}`);
             return;
           }
 
           closeModal(); await load(); clearSelection(); return;
 
         } else {
-          const pin = document.getElementById("pin").value;
+          // UPDATE
           if (!/^\d{4}$/.test(pin)) {
             alert("수정/취소 PIN은 숫자 4자리입니다.");
             return;
@@ -2064,36 +2118,35 @@
             return;
           }
 
-          const payload = { room_id: roomId, start_at: startAt, end_at: endAt, title, note_internal: note, cancel_pin: pin };
-          if (newPin) payload["new_cancel_pin"] = newPin;
-
-          // 수정/취소 범위: 전체(반복 예약) 선택 시 series_id 추가
           const scope = (document.querySelector('input[name="cancel-scope"]:checked')?.value || "single");
-          if (scope === "series") {
-            const r = state.currentEdit || state.resById[resId];
-            if (r && r.series_id) payload["series_id"] = r.series_id;
-          }
+          const editPayload = {
+            room_id: roomId,
+            start_at: startAt,
+            end_at: endAt,
+            title,
+            note_internal: note,
+            color,
+            cancel_pin: pin,
+            scope: scope
+          };
+          if (newPin) editPayload["new_cancel_pin"] = newPin;
 
-          // include scope so server knows to apply series-wide update
-          payload.scope = scope;
+          const r = state.currentEdit || state.resById[resId];
+          if (r && r.series_id) editPayload["series_id"] = r.series_id;
 
-          try { console.log("[edit] payload=", JSON.stringify(payload)); } catch (e) { console.log("[edit] payload (obj)=", payload); }
           const resp = await fetch(`/api/office/reservations/${encodeURIComponent(resId)}`, {
             method: "PATCH",
             headers: { "Content-Type": "application/json" },
-            body: JSON.stringify(payload)
+            body: JSON.stringify(editPayload)
           });
 
           const text = await resp.text();
-          let out;
-          try { out = JSON.parse(text); } catch (e) { out = { ok: false, error: "Invalid JSON from server", raw: text }; }
-
-          console.log("[edit] status=", resp.status, out);
+          let out = null;
+          try { out = text ? JSON.parse(text) : null; }
+          catch (e) { out = { ok: false, error: "Invalid JSON" }; }
 
           if (!resp.ok || !out || out.ok === false) {
-            const msg = (out && (out.error || out.detail || out.message)) ? (out.error || out.detail || out.message) : "수정 실패";
-            const extra = (out && out.raw) ? String(out.raw).slice(0, 500) : "";
-            alert(`${msg}\nHTTP ${resp.status}` + (extra ? `\n${extra}` : ""));
+            alert("수정 실패: " + (out ? out.error : "Unknown error"));
             return;
           }
 
@@ -2110,14 +2163,13 @@
                   existing.end_at = u.end_at;
                   existing.title = u.title;
                   existing.note_internal = u.note_internal || existing.note_internal;
+                  existing.color = u.color || existing.color;
                   state.resById[id] = existing;
                   const idx = state.data.reservations.findIndex(rr => String(rr.id) === id);
                   if (idx !== -1) state.data.reservations[idx] = existing;
                 }
               });
-              console.log("[series-apply] renderGrid calling...");
               renderGrid();
-              console.log("[series-apply] done");
             }
           } catch (e) { console.warn("series client-side apply failed:", e); }
 
@@ -2125,8 +2177,8 @@
         }
 
       } catch (err) {
-        console.error(err);
-        alert("생성/수정 중 오류:\n" + (err && err.stack ? err.stack : String(err)));
+        console.error("[saveReservation] unexpected error:", err);
+        alert("저장 중 예상치 못한 오류가 발생했습니다: " + err.message);
       }
     }
 
@@ -2313,6 +2365,14 @@
       } else {
         console.warn("[init] btn-create-cancel not found");
       }
+
+      document.getElementById('color-picker')?.addEventListener('click', (e) => {
+        if (e.target.classList.contains('color-option')) {
+          document.querySelectorAll('.color-option').forEach(el => el.classList.remove('selected'));
+          e.target.classList.add('selected');
+          document.getElementById('selected-color').value = e.target.dataset.color;
+        }
+      });
 
       const dateEl = document.getElementById("date") || document.querySelector('input[type="date"][name="date"]');
       if (dateEl) {

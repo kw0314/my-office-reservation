@@ -46,7 +46,8 @@ def _check_conflicts(*, room: Room, start_at, end_at, exclude_reservation_id=Non
 
 @transaction.atomic
 def create_reservation(*, room: Room, start_at, end_at, title: str, note_internal: str,
-                       cancel_pin: str, device: AccessDevice | None, ip: str | None,
+                       cancel_pin: str, color: str = "#e3f2fd",
+                       device: AccessDevice | None, ip: str | None,
                        repeat_days: list[int] | None = None, repeat_until: date | None = None):
     """Create a single reservation or a weekly recurring series.
 
@@ -72,6 +73,7 @@ def create_reservation(*, room: Room, start_at, end_at, title: str, note_interna
             end_at=instance_start + duration,
             title=title_s,
             note_internal=note_s,
+            color=color,
             created_by_device=device,
         )
         r.set_cancel_pin(cancel_pin)
@@ -175,6 +177,7 @@ def create_reservation(*, room: Room, start_at, end_at, title: str, note_interna
                 end_at=s + duration,
                 title=title_s,
                 note_internal=note_s,
+                color=color,
                 created_by_device=device,
                 series_id=series_id,
                 cancel_pin_hash=pin_hash,
@@ -208,7 +211,7 @@ def create_reservation(*, room: Room, start_at, end_at, title: str, note_interna
 
 @transaction.atomic
 def update_reservation(*, reservation_id, room: Room, start_at, end_at, title: str,
-                       note_internal: str, new_cancel_pin: str | None,
+                       note_internal: str, color: str = None, new_cancel_pin: str | None,
                        device: AccessDevice | None, ip: str | None):
     r = Reservation.objects.select_for_update().get(id=reservation_id)
 
@@ -220,6 +223,8 @@ def update_reservation(*, reservation_id, room: Room, start_at, end_at, title: s
     r.end_at = end_at
     r.title = title.strip()
     r.note_internal = note_internal.strip()
+    if color:
+        r.color = color
 
     if new_cancel_pin:
         r.set_cancel_pin(new_cancel_pin)
@@ -237,13 +242,10 @@ def update_reservation(*, reservation_id, room: Room, start_at, end_at, title: s
         ip=ip,
         detail={"room": room.name, "start_at": str(start_at), "end_at": str(end_at), "title": r.title},
     )
-    return r
-
-
 @transaction.atomic
 def update_reservation_series(*, reservation_id, series_id: str, room: Room | None,
                               start_at=None, end_at=None,
-                              title: str | None, note_internal: str | None,
+                              title: str | None, note_internal: str | None, color: str | None = None,
                               new_cancel_pin: str | None, device: AccessDevice | None, ip: str | None):
     """
     Update all reservations in a series (title, note, cancel pin, and optionally time).
@@ -328,6 +330,8 @@ def update_reservation_series(*, reservation_id, series_id: str, room: Room | No
             r.title = title.strip()
         if note_internal is not None:
             r.note_internal = note_internal.strip()
+        if color is not None:
+            r.color = color
         if new_cancel_pin:
             r.set_cancel_pin(new_cancel_pin)
         

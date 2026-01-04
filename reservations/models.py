@@ -112,6 +112,9 @@ class Reservation(models.Model):
     cancel_fail_count = models.PositiveIntegerField(default=0)
     cancel_locked_until = models.DateTimeField(null=True, blank=True)
 
+    # Color of the reservation block (CSS hex/color)
+    color = models.CharField(max_length=20, default="#e3f2fd")
+
     class Meta:
         indexes = [
             models.Index(fields=["room", "start_at"]),
