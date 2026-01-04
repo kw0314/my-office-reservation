@@ -442,6 +442,20 @@
       gap: 4px;
     }
 
+    .cal-weekdays {
+      display: grid;
+      grid-template-columns: repeat(7, 1fr);
+      gap: 4px;
+      margin-bottom: 4px;
+    }
+
+    .cal-dow {
+      text-align: center;
+      font-size: 12px;
+      font-weight: 600;
+      color: #666;
+    }
+
     .cal-day {
       aspect-ratio: 1;
       display: flex;
@@ -525,6 +539,15 @@
         <button type="button" class="nav-btn" id="cal-prev">❮</button>
         <h4 id="cal-month"></h4>
         <button type="button" class="nav-btn" id="cal-next">❯</button>
+      </div>
+      <div class="cal-weekdays">
+        <div class="cal-dow" style="color:#e00;">일</div>
+        <div class="cal-dow">월</div>
+        <div class="cal-dow">화</div>
+        <div class="cal-dow">수</div>
+        <div class="cal-dow">목</div>
+        <div class="cal-dow">금</div>
+        <div class="cal-dow" style="color:#00e;">토</div>
       </div>
       <div id="calendar"></div>
     </aside>
