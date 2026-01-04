@@ -482,6 +482,7 @@
       align-items: center;
       justify-content: center;
       transition: all 0.2s;
+      white-space: nowrap;
     }
 
     .collapsed-nav-btn:hover {
@@ -674,11 +675,11 @@
 
       <!-- Collapsed navigation buttons -->
       <div class="sidebar-collapsed-nav" id="sidebar-collapsed-nav">
-        <button type="button" class="collapsed-nav-btn" onclick="moveDate(-7)">-1주</button>
-        <button type="button" class="collapsed-nav-btn" onclick="moveDate(-1)">-1일</button>
+        <button type="button" class="collapsed-nav-btn" onclick="moveDate(-7)">-1W</button>
+        <button type="button" class="collapsed-nav-btn" onclick="moveDate(-1)">-1D</button>
         <button type="button" class="collapsed-nav-btn today" onclick="goToday()">오늘</button>
-        <button type="button" class="collapsed-nav-btn" onclick="moveDate(1)">+1일</button>
-        <button type="button" class="collapsed-nav-btn" onclick="moveDate(7)">+1주</button>
+        <button type="button" class="collapsed-nav-btn" onclick="moveDate(1)">+1D</button>
+        <button type="button" class="collapsed-nav-btn" onclick="moveDate(7)">+1W</button>
       </div>
 
       <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;padding-left:32px;">
