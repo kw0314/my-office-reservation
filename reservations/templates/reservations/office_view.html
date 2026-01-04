@@ -605,6 +605,13 @@
       cursor: default;
     }
 
+    /* Selected takes priority over other-month */
+    .cal-day.other-month.selected {
+      color: #fff !important;
+      background: #1f7a3a !important;
+      cursor: pointer;
+    }
+
     .cal-day.today {
       background: #fff3e0;
       border-color: #ff9800;
@@ -1302,10 +1309,17 @@
         }
 
         day.addEventListener("click", () => {
-          document.getElementById("date").value = dateStr;
+          const dateInput = document.getElementById("date");
+          if (dateInput) {
+            dateInput.value = dateStr;
+          }
           renderSelectedDateBadge();
+          updateCollapsedView();
           buildTime30Datalist();
-          renderCalendar();
+          // Re-render calendar after a brief delay to ensure date input is updated
+          setTimeout(() => {
+            renderCalendar();
+          }, 10);
           if (typeof load === "function") load().catch(e => { console.error(e); });
         });
 
