@@ -736,6 +736,16 @@
     <datalist id="time-30-end"></datalist>
   </dialog>
 
+  <!-- Room Detail Modal -->
+  <dialog id="room-detail-modal">
+    <h3 id="room-detail-title" style="margin-top:0;">예약 현황</h3>
+    <div id="room-detail-list" style="max-height: 50vh; overflow-y: auto; margin-bottom: 15px;"></div>
+    <div style="text-align:right;">
+      <button type="button" onclick="closeRoomDetail()">닫기</button>
+    </div>
+  </dialog>
+
+
   <script>
     // selected date helper (works for Django-rendered template AND static file)
     function getSelectedDate() {
