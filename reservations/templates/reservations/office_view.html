@@ -496,8 +496,7 @@
   <div class="topbar">
     <h2 style="margin:0;">사무실 — 교리실 예약</h2>
     <form method="get" action="/office/">
-      <label class="muted">날짜</label>
-      <input type="date" id="date" name="date" value="{{ selected_date }}" />
+      <input type="hidden" id="date" name="date" value="{{ selected_date }}" />
       <button type="button" class="btn-today" id="btn-today">오늘</button>
       <span id="selected-date-badge" class="date-badge" aria-live="polite"></span>
     </form>
@@ -1943,6 +1942,11 @@
     async function goToday() {
       const el = document.getElementById("date") || document.querySelector('input[type="date"][name="date"]');
       if (el) el.value = todayStr();
+
+      // Update calendar view to today
+      calendarViewDate = new Date();
+      renderCalendar();
+
       renderSelectedDateBadge();
       buildTime30Datalist();
       if (typeof load === "function") {
