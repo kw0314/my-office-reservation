@@ -250,16 +250,16 @@
   font-weight: 600;
 }
 .cal-day.selected {
-  background: #1f7a3a;
-  color: #fff;
-  border-color: #1f7a3a;
-  font-weight: 600;
+  background: #1f7a3a !important;
+  color: #fff !important;
+  border-color: #1f7a3a !important;
+  font-weight: 600 !important;
 }
 /* If both today and selected, selected takes priority */
 .cal-day.today.selected {
-  background: #1f7a3a;
-  border-color: #1f7a3a;
-  color: #fff;
+  background: #1f7a3a !important;
+  border-color: #1f7a3a !important;
+  color: #fff !important;
 }
 
 </style>
@@ -822,8 +822,10 @@ document.addEventListener("mouseup", () => { state.dragging = false; state.resiz
           day.classList.add("today");
         }
         if (dateStr === selDate) {
-          console.log("[renderCalendar] ✓ 선택된 날짜 매칭됨:", dateStr, "classes:", day.className);
           day.classList.add("selected");
+          console.log("[renderCalendar] ✓ 선택된 날짜 매칭됨:", dateStr);
+          console.log("[renderCalendar] 클래스 추가 직후 day.className:", day.className);
+          console.log("[renderCalendar] day.classList:", Array.from(day.classList));
         }
         
         day.addEventListener("click", () => {
