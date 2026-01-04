@@ -497,8 +497,6 @@
     <h2 style="margin:0;">사무실 — 교리실 예약</h2>
     <form method="get" action="/office/">
       <input type="hidden" id="date" name="date" value="{{ selected_date }}" />
-      <button type="button" class="btn-today" id="btn-today">오늘</button>
-      <span id="selected-date-badge" class="date-badge" aria-live="polite"></span>
     </form>
     <span class="pill" id="range-pill"></span>
     <span class="muted"> 빈칸 클릭 → 예약 생성 / 예약 블록 클릭 → 수정/취소 · (수정) 시간변경/리사이즈 가능</span>
@@ -518,6 +516,11 @@
 
   <div class="grid-wrap">
     <aside class="sidebar-calendar">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;">
+        <span id="selected-date-badge" class="date-badge" aria-live="polite"
+          style="border:none;padding:0;box-shadow:none;"></span>
+        <button type="button" class="btn-today" id="btn-today" style="padding:4px 8px;font-size:12px;">오늘</button>
+      </div>
       <div class="calendar-header">
         <button type="button" class="nav-btn" id="cal-prev">❮</button>
         <h4 id="cal-month"></h4>
