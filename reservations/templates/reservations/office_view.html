@@ -10,7 +10,11 @@
     html,
     body {
       height: 100%;
+      height: 100dvh;
+      /* use dynamic viewport height for mobile */
       margin: 0;
+      overflow: hidden;
+      /* enforce no body scroll */
     }
 
     *,
@@ -73,7 +77,20 @@
     td {
       border: 1px solid #e5e5e5;
       padding: 6px;
-      font-size: 12px;
+      font-size: 13px;
+      /* default cell font */
+    }
+
+    /* Room column specifically larger */
+    td.room {
+      position: sticky;
+      left: 0;
+      background: #fff;
+      z-index: 1;
+      min-width: 140px;
+      font-size: 15px;
+      /* larger room font */
+      font-weight: 600;
     }
 
     th {
@@ -83,13 +100,7 @@
       z-index: 2;
     }
 
-    td.room {
-      position: sticky;
-      left: 0;
-      background: #fff;
-      z-index: 1;
-      min-width: 140px;
-    }
+
 
     .cell {
       height: 34px;
