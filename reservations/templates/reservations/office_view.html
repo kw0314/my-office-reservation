@@ -417,6 +417,49 @@
       background: #fafafa;
       overflow-y: auto;
       min-height: 0;
+      transition: flex-basis 0.3s ease, padding 0.3s ease, opacity 0.3s ease;
+      position: relative;
+    }
+
+    .sidebar-calendar.collapsed {
+      flex: 0 0 40px;
+      padding: 12px 4px;
+      /* minimal padding */
+      overflow: hidden;
+    }
+
+    .sidebar-calendar.collapsed>*:not(.sidebar-toggle) {
+      display: none !important;
+    }
+
+    .sidebar-toggle {
+      position: absolute;
+      top: 50%;
+      right: -12px;
+      /* transform: translateY(-50%); */
+      width: 24px;
+      height: 48px;
+      background: #fafafa;
+      border: 1px solid #ddd;
+      border-left: none;
+      /* merge with sidebar border */
+      border-radius: 0 8px 8px 0;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      z-index: 10;
+      font-size: 14px;
+      color: #666;
+    }
+
+    .sidebar-calendar.collapsed .sidebar-toggle {
+      right: 4px;
+      /* inside the collapsed strip */
+      border: 1px solid #ddd;
+      border-radius: 4px;
+      width: 32px;
+      height: 32px;
     }
 
     .calendar-header {
@@ -554,7 +597,8 @@
   </div>
 
   <div class="grid-wrap">
-    <aside class="sidebar-calendar">
+    <aside class="sidebar-calendar" id="sidebar-calendar">
+      <button type="button" class="sidebar-toggle" id="sidebar-toggle" title="사이드바 접기/펼치기">◀</button>
       <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;">
         <span id="selected-date-badge" class="date-badge" aria-live="polite"
           style="border:none;padding:0;box-shadow:none;"></span>
@@ -2278,6 +2322,28 @@
       if (modalDateEl) {
         // 날짜 변경 시에는 시간 값은 유지하고, 표시만 업데이트
         modalDateEl.addEventListener("change", () => updateEndPreview_());
+      }
+
+      // Sidebar toggle
+      const sideToggle = document.getElementById("sidebar-toggle");
+      const sideBar = document.getElementById("sidebar-calendar");
+      if (sideToggle && sideBar) {
+        sideToggle.addEventListener("click", () => {
+          sideBar.classList.toggle("collapsed");
+          if (sideBar.classList.contains("collapsed")) {
+            sideToggle.textContent = "▶";
+            sideToggle.style.right = "auto";
+            sideToggle.style.left = "50%";
+            sideToggle.style.transform = "translateX(-50%)";
+            sideToggle.style.borderLeft = "1px solid #ddd"; // restore border
+          } else {
+            sideToggle.textContent = "◀";
+            sideToggle.style.right = "-12px";
+            sideToggle.style.left = "auto";
+            sideToggle.style.transform = "none";
+            sideToggle.style.borderLeft = "none";
+          }
+        });
       }
 
     });
