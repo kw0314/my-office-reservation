@@ -596,7 +596,10 @@
 
 <body>
   <div class="topbar">
-    <h2 style="margin:0;">사무실 — 교리실 예약</h2>
+    <h2 style="margin:0; display:flex; align-items:center; gap:12px;">
+      사무실 — 교리실 예약
+      <span id="title-date-badge" style="font-size:16px; font-weight:700; color:#1f7a3a; display:none;"></span>
+    </h2>
     <form method="get" action="/office/">
       <input type="hidden" id="date" name="date" value="{{ selected_date }}" />
     </form>
@@ -2177,7 +2180,11 @@
       const m = dt.getMonth() + 1;
       const d = dt.getDate();
       const w = ["일", "월", "화", "수", "목", "금", "토"][dt.getDay()];
-      lbl.textContent = `${m}월 ${d}일 (${w})`;
+      const str = `${m}월 ${d}일 (${w})`;
+      lbl.textContent = str;
+
+      const titleBadge = document.getElementById("title-date-badge");
+      if (titleBadge) titleBadge.textContent = str;
     }
 
 
@@ -2370,19 +2377,24 @@
       // Sidebar toggle
       const sideToggle = document.getElementById("sidebar-toggle");
       const sideBar = document.getElementById("sidebar-calendar");
-      if (sideToggle && sideBar) {
-        sideToggle.addEventListener("click", () => {
-          sideBar.classList.toggle("collapsed");
-          if (sideBar.classList.contains("collapsed")) {
-            sideToggle.textContent = "▶";
-            // remove manual style manipulations to rely on CSS
-            sideToggle.removeAttribute("style");
-          } else {
-            sideToggle.textContent = "◀";
-            sideToggle.removeAttribute("style");
-          }
-        });
-      }
+      if (sideToggle && sideBar) sideToggle.addEventListener("click", () => {
+        sideBar.classList.toggle("collapsed");
+        const isCollapsed = sideBar.classList.contains("collapsed");
+
+        // Toggle title badge visibility
+        const titleBadge = document.getElementById("title-date-badge");
+        if (titleBadge) titleBadge.style.display = isCollapsed ? "inline" : "none";
+
+        if (isCollapsed) {
+          sideToggle.textContent = "▶";
+          // remove manual style manipulations to rely on CSS
+          sideToggle.removeAttribute("style");
+        } else {
+          sideToggle.textContent = "◀";
+          sideToggle.removeAttribute("style");
+        }
+      });
+
 
       const colToday = document.getElementById("collapsed-today-btn");
       if (colToday) colToday.addEventListener("click", (e) => { e.stopPropagation(); goToday(); });
