@@ -897,6 +897,50 @@
       document.getElementById("modal-title").textContent = "예약 수정/취소";
       document.getElementById("modal-hint").textContent =
         "수정/취소 PIN(4자리)은 필수입니다.";
+      document.getElementById("modal-hint").textContent =
+        "수정/취소 PIN(4자리)은 필수입니다.";
+    }
+
+    function openRoomDetail(room) {
+      const modal = document.getElementById("room-detail-modal");
+      if (!modal) return;
+
+      const title = document.getElementById("room-detail-title");
+      const list = document.getElementById("room-detail-list");
+      if (title) title.textContent = `${room.name} 예약 현황`;
+
+      if (list) {
+        list.innerHTML = "";
+
+        // Find reservations for this room
+        const roomRes = state.data.reservations.filter(r => String(r.room_id) === String(room.id));
+        roomRes.sort((a, b) => a.start_at.localeCompare(b.start_at));
+
+        if (roomRes.length === 0) {
+          list.innerHTML = "<div class='muted'>예약이 없습니다.</div>";
+        } else {
+          roomRes.forEach(r => {
+            const s = hhmm(parseISO(r.start_at));
+            const e = hhmm(parseISO(r.end_at));
+            const div = document.createElement("div");
+            div.style.padding = "8px 0";
+            div.style.borderBottom = "1px solid #eee";
+            div.innerHTML = `
+               <div style="font-weight:600;font-size:14px;">${s} ~ ${e}</div>
+               <div style="font-size:13px;">${r.title}</div>
+               ${r.note_internal ? `<div class="muted" style="font-size:12px;">${r.note_internal}</div>` : ""}
+             `;
+            list.appendChild(div);
+          });
+        }
+      }
+
+      modal.showModal();
+    }
+
+    function closeRoomDetail() {
+      const modal = document.getElementById("room-detail-modal");
+      if (modal) modal.close();
     }
 
     function openCreate(roomId, startLabel, endLabel) {
@@ -1352,6 +1396,8 @@
         const tdRoom = document.createElement("td");
         tdRoom.className = "room";
         tdRoom.innerHTML = `<span class="label">${room.name}</span>`;
+        tdRoom.style.cursor = "pointer"; // indicate clickable
+        tdRoom.addEventListener("click", () => openRoomDetail(room));
         tr.appendChild(tdRoom);
 
         const cells = [];
