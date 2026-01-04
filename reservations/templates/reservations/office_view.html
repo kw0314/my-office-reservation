@@ -428,8 +428,26 @@
       overflow: hidden;
     }
 
-    .sidebar-calendar.collapsed>*:not(.sidebar-toggle) {
+    .sidebar-calendar.collapsed>*:not(.sidebar-toggle):not(.sidebar-collapsed-content) {
       display: none !important;
+    }
+
+    .sidebar-collapsed-content {
+      display: none;
+      flex-direction: column;
+      align-items: center;
+      gap: 12px;
+      margin-top: 40px;
+      writing-mode: vertical-rl;
+      text-orientation: upright;
+      font-weight: 700;
+      color: #444;
+      font-size: 14px;
+      letter-spacing: 2px;
+    }
+
+    .sidebar-calendar.collapsed .sidebar-collapsed-content {
+      display: flex;
     }
 
     .sidebar-toggle {
@@ -601,6 +619,14 @@
   <div class="grid-wrap">
     <aside class="sidebar-calendar" id="sidebar-calendar">
       <button type="button" class="sidebar-toggle" id="sidebar-toggle" title="사이드바 접기/펼치기">◀</button>
+
+      <!-- Collapsed vertical view -->
+      <div class="sidebar-collapsed-content" id="sidebar-collapsed-content">
+        <span id="collapsed-today-btn"
+          style="cursor:pointer; padding:4px; border:1px solid #ccc; border-radius:4px;">오늘</span>
+        <span id="collapsed-date-label"></span>
+      </div>
+
       <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;padding-left:32px;">
         <span id="selected-date-badge" class="date-badge" aria-live="polite"
           style="border:none;padding:0;box-shadow:none;"></span>
@@ -2106,7 +2132,9 @@
       calendarViewDate = new Date();
       renderCalendar();
 
+
       renderSelectedDateBadge();
+      updateCollapsedView(); // update vertical label
       buildTime30Datalist();
       if (typeof load === "function") {
         try { await load(); } catch (e) { console.error(e); alert("데이터를 불러오지 못했습니다."); }
@@ -2132,11 +2160,24 @@
       renderCalendar();
 
       renderSelectedDateBadge();
+      updateCollapsedView(); // update vertical label
       buildTime30Datalist();
 
       if (typeof load === "function") {
         try { await load(); } catch (e) { console.error(e); }
       }
+    }
+
+    function updateCollapsedView() {
+      const lbl = document.getElementById("collapsed-date-label");
+      if (!lbl) return;
+      const dStr = document.getElementById("date")?.value || "";
+      if (!dStr) { lbl.textContent = ""; return; }
+      const dt = new Date(dStr + "T00:00:00");
+      const m = dt.getMonth() + 1;
+      const d = dt.getDate();
+      const w = ["일", "월", "화", "수", "목", "금", "토"][dt.getDay()];
+      lbl.textContent = `${m}월 ${d}일 (${w})`;
     }
 
 
@@ -2342,6 +2383,12 @@
           }
         });
       }
+
+      const colToday = document.getElementById("collapsed-today-btn");
+      if (colToday) colToday.addEventListener("click", (e) => { e.stopPropagation(); goToday(); });
+
+      // Init collapsed view
+      updateCollapsedView();
 
     });
 
