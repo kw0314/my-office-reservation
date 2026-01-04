@@ -255,6 +255,12 @@
   border-color: #1f7a3a;
   font-weight: 600;
 }
+/* If both today and selected, selected takes priority */
+.cal-day.today.selected {
+  background: #1f7a3a;
+  border-color: #1f7a3a;
+  color: #fff;
+}
 
 </style>
 </head>
@@ -816,7 +822,7 @@ document.addEventListener("mouseup", () => { state.dragging = false; state.resiz
           day.classList.add("today");
         }
         if (dateStr === selDate) {
-          console.log("[renderCalendar] ✓ 선택된 날짜 매칭됨:", dateStr);
+          console.log("[renderCalendar] ✓ 선택된 날짜 매칭됨:", dateStr, "classes:", day.className);
           day.classList.add("selected");
         }
         
