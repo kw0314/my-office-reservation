@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from datetime import timedelta, datetime, date
 from zoneinfo import ZoneInfo
+import calendar as _cal
 import uuid
 from django.db import transaction
 from django.core.exceptions import ValidationError
@@ -44,29 +45,103 @@ def _check_conflicts(*, room: Room, start_at, end_at, exclude_reservation_id=Non
         raise ValidationError("Time overlaps with an existing reservation.")
 
 
+def _add_months(d: date, months: int) -> date:
+    """Add months to a date, clamping to end of month."""
+    m = d.month - 1 + months
+    year = d.year + m // 12
+    month = m % 12 + 1
+    return date(year, month, min(d.day, _cal.monthrange(year, month)[1]))
+
+
+def _generate_repeat_dates(
+    *, start_date: date, repeat_until: date,
+    repeat_type: str, repeat_days: list[int],
+    repeat_interval: int = 1,
+    repeat_weeks_of_month: list[int] | None = None,
+) -> list[date]:
+    """Generate candidate dates for a recurring series.
+
+    repeat_type  : 'weekly' | 'monthly' | 'monthly_custom'
+    repeat_days  : [0..6]  0=Sun..6=Sat  (weekly / monthly_custom)
+    repeat_interval : every N weeks (weekly only, default 1)
+    repeat_weeks_of_month: [1..5] 5=last (monthly_custom only)
+    """
+    result: list[date] = []
+
+    if repeat_type == "monthly":
+        m = 0
+        while True:
+            d = _add_months(start_date, m)
+            if d > repeat_until:
+                break
+            if d >= start_date:
+                result.append(d)
+                if len(result) > MAX_RECUR_OCCURRENCES:
+                    raise ValidationError(f"성성 가능한 최대 횟수를 초과합니다 (max {MAX_RECUR_OCCURRENCES}).")
+            m += 1
+
+    elif repeat_type == "monthly_custom":
+        if not repeat_days or not repeat_weeks_of_month:
+            return []
+        cur_y, cur_m = start_date.year, start_date.month
+        while date(cur_y, cur_m, 1) <= repeat_until:
+            for our_dow in sorted(repeat_days):
+                py_wd = (our_dow - 1) % 7  # our Sun=0 -> Python Sun=6
+                day_nums = [row[py_wd] for row in _cal.monthcalendar(cur_y, cur_m) if row[py_wd]]
+                for wom in sorted(repeat_weeks_of_month):
+                    idx = -1 if wom == 5 else wom - 1
+                    if 0 <= idx < len(day_nums) or wom == 5:
+                        d = date(cur_y, cur_m, day_nums[idx])
+                        if start_date <= d <= repeat_until:
+                            result.append(d)
+            cur_m += 1
+            if cur_m > 12:
+                cur_y += 1
+                cur_m = 1
+        result = sorted(set(result))
+        if len(result) > MAX_RECUR_OCCURRENCES:
+            raise ValidationError(f"성성 가능한 최대 횟수를 초과합니다 (max {MAX_RECUR_OCCURRENCES}).")
+
+    else:  # weekly (handles weekly / biweekly / N-weekly / weekdays)
+        if not repeat_days:
+            return []
+        start_of_week = start_date - timedelta(days=_our_dow(start_date))
+        cur = start_date
+        while cur <= repeat_until:
+            weeks = (cur - start_of_week).days // 7
+            if weeks % repeat_interval == 0 and _our_dow(cur) in repeat_days:
+                result.append(cur)
+                if len(result) > MAX_RECUR_OCCURRENCES:
+                    raise ValidationError(
+                        f"성성 가능한 최대 횟수를 초과합니다 (max {MAX_RECUR_OCCURRENCES})."
+                    )
+            cur += timedelta(days=1)
+
+    return result
+
+
+
 @transaction.atomic
 def create_reservation(*, room: Room, start_at, end_at, title: str, note_internal: str,
                        cancel_pin: str, color: str = "#e3f2fd",
                        device: AccessDevice | None, ip: str | None,
-                       repeat_days: list[int] | None = None, repeat_until: date | None = None):
-    """Create a single reservation or a weekly recurring series.
+                       repeat_days: list[int] | None = None,
+                       repeat_until: date | None = None,
+                       repeat_interval: int = 1,
+                       repeat_type: str = "weekly",
+                       repeat_weeks_of_month: list[int] | None = None):
+    """Create a single or recurring reservation.
 
-    - repeat_days: list[int] in 0=Sunday..6=Saturday
-    - repeat_until: local date (America/Chicago), inclusive
-
-    Returns:
-        - if non-recurring: Reservation
-        - if recurring: (series_id, [Reservation, ...])
+    repeat_type: 'weekly'|'monthly'|'monthly_custom'
+    repeat_days: [0..6] 0=Sun (weekly/monthly_custom)
+    repeat_interval: every N weeks (weekly, default 1)
+    repeat_weeks_of_month: [1..5] 5=last (monthly_custom)
     """
-
     title_s = title.strip()
     note_s = note_internal.strip()
-
-    # duration used for recurring instances
     duration = end_at - start_at
 
     def _make_oneoff(instance_start):
-        """Create a single instance (uses per-row validation + conflict check)."""
         r = Reservation(
             room=room,
             start_at=instance_start,
@@ -82,8 +157,9 @@ def create_reservation(*, room: Room, start_at, end_at, title: str, note_interna
         r.save()
         return r
 
-    if not repeat_days:
-        # one-off
+    # Determine if this is a recurring reservation
+    is_recurring = bool(repeat_days) or repeat_type == "monthly"
+    if not is_recurring:
         r = _make_oneoff(start_at)
         AuditLog.objects.create(
             actor_type=AuditLog.ACTOR_DEVICE if device else AuditLog.ACTOR_ADMIN,
@@ -95,42 +171,36 @@ def create_reservation(*, room: Room, start_at, end_at, title: str, note_interna
         )
         return r
 
-    # recurring
+    # --- recurring ---
     if repeat_until is None:
-        raise ValidationError("repeat_until is required when repeat_days is provided.")
+        raise ValidationError("반복 예약에는 종료일이 필요합니다.")
 
-    # normalize and validate day values
-    repeat_days = sorted({int(x) for x in repeat_days})
-    for d in repeat_days:
-        if d < 0 or d > 6:
-            raise ValidationError("repeat_days must be within 0..6 (0=Sunday).")
+    if repeat_days:
+        repeat_days = sorted({int(x) for x in repeat_days})
+        for d in repeat_days:
+            if d < 0 or d > 6:
+                raise ValidationError("repeat_days must be within 0..6 (0=Sunday).")
 
     local_start = timezone.localtime(start_at, TZ)
     start_date = local_start.date()
     if repeat_until < start_date:
-        raise ValidationError("repeat_until must be on or after the start date.")
+        raise ValidationError("종료일은 시작일 이후여야 합니다.")
+    if (repeat_until - start_date).days > 730:
+        raise ValidationError("반복 범위가 너무 큽니다 (max 2년).")
 
-    # cap occurrences for safety (about 2 years)
-    max_days = 730
-    if (repeat_until - start_date).days > max_days:
-        raise ValidationError("repeat range is too large.")
-
-    # Build candidate dates first (cap by occurrence count, not date span)
     local_t = local_start.timetz().replace(tzinfo=None)
-    candidate_dates: list[date] = []
-    cur = start_date
-    while cur <= repeat_until:
-        if _our_dow(cur) in repeat_days:
-            candidate_dates.append(cur)
-            if len(candidate_dates) > MAX_RECUR_OCCURRENCES:
-                raise ValidationError(
-                    f"Too many recurring occurrences (max {MAX_RECUR_OCCURRENCES}). "
-                    "Reduce repeat days or repeat-until date."
-                )
-        cur += timedelta(days=1)
+    candidate_dates = _generate_repeat_dates(
+        start_date=start_date,
+        repeat_until=repeat_until,
+        repeat_type=repeat_type,
+        repeat_days=repeat_days or [],
+        repeat_interval=max(1, repeat_interval),
+        repeat_weeks_of_month=repeat_weeks_of_month,
+    )
 
     if not candidate_dates:
-        raise ValidationError("No occurrences created (check repeat_days).")
+        raise ValidationError("생성되는 예약이 없습니다. 반복 설정을 확인해 주세요.")
+
 
     # Build timezone-aware instance intervals
     tz_cur = timezone.get_current_timezone()

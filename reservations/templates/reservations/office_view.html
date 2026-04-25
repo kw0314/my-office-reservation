@@ -879,12 +879,37 @@
         <select id="repeat-type" style="padding:8px 10px;border:1px solid #ddd;border-radius:8px;font-size:14px;background:#fff;cursor:pointer;">
           <option value="none">반복 없음</option>
           <option value="weekly">매주</option>
+          <option value="biweekly">격주</option>
+          <option value="monthly">매월 (같은 날짜)</option>
+          <option value="weekdays">모든 평일 (월-금)</option>
+          <option value="nweekly">N 주마다</option>
+          <option value="custom">커스텀 (월별 특정 주/요일)</option>
         </select>
 
-        <!-- 반복 옵션 패널 (매주 선택 시 표시) -->
+        <!-- 반복 옵션 패널 -->
         <div id="repeat-options" style="display:none;flex-direction:column;gap:12px;padding:12px;background:#f8f9fa;border-radius:8px;border:1px solid #e9ecef;">
 
-          <div style="display:flex;flex-direction:column;gap:6px;">
+          <!-- N 주마다 선택 시 표시 -->
+          <div id="n-weekly-options" style="display:none;align-items:center;gap:10px;">
+            <span style="font-size:12px;color:#555;font-weight:600;">반복 간격:</span>
+            <input id="repeat-interval" type="number" value="1" min="1" style="width:60px;padding:6px;border:1px solid #ddd;border-radius:6px;" />
+            <span style="font-size:12px;color:#555;">주 마다</span>
+          </div>
+
+          <!-- 커스텀(월별) 선택 시 표시 -->
+          <div id="custom-weeks-options" style="display:none;flex-direction:column;gap:6px;">
+            <span style="font-size:12px;color:#555;font-weight:600;">반복할 주</span>
+            <div class="repeat-dow-group">
+              <input id="wom-1" type="checkbox" class="repeat-wom" value="1"><label class="dow-toggle" for="wom-1">1주</label>
+              <input id="wom-2" type="checkbox" class="repeat-wom" value="2"><label class="dow-toggle" for="wom-2">2주</label>
+              <input id="wom-3" type="checkbox" class="repeat-wom" value="3"><label class="dow-toggle" for="wom-3">3주</label>
+              <input id="wom-4" type="checkbox" class="repeat-wom" value="4"><label class="dow-toggle" for="wom-4">4주</label>
+              <input id="wom-5" type="checkbox" class="repeat-wom" value="5"><label class="dow-toggle" for="wom-5">마지막주</label>
+            </div>
+          </div>
+
+          <!-- 요일 선택 (monthly 제외하고 대부분 필요) -->
+          <div id="dow-options" style="display:flex;flex-direction:column;gap:6px;">
             <span style="font-size:12px;color:#555;font-weight:600;">반복 요일</span>
             <div class="repeat-dow-group" aria-label="반복 요일 선택">
               <input id="dow-0" type="checkbox" class="repeat-dow" value="0"><label class="dow-toggle" for="dow-0">일</label>
@@ -902,7 +927,7 @@
             <input id="repeat-until" type="date" style="flex:1;min-width:140px;padding:6px 8px;border:1px solid #ddd;border-radius:6px;" />
           </div>
 
-          <!-- 반복 요약 (Google Calendar 스타일) -->
+          <!-- 반복 요약 -->
           <div id="repeat-summary" style="display:none;font-size:12px;color:#1f7a3a;font-weight:600;padding:7px 12px;background:#e8f5e9;border-radius:6px;border-left:3px solid #1f7a3a;"></div>
         </div>
 
@@ -1239,6 +1264,16 @@
         if (repOpts) repOpts.style.display = "none";
         if (repSummary) { repSummary.textContent = ""; repSummary.style.display = "none"; }
         document.querySelectorAll(".repeat-dow").forEach(cb => cb.checked = false);
+        document.querySelectorAll(".repeat-wom").forEach(cb => cb.checked = false);
+        const intervalEl = document.getElementById("repeat-interval");
+        if (intervalEl) intervalEl.value = "1";
+        
+        // Hide sub-panels
+        ["n-weekly-options", "custom-weeks-options", "dow-options"].forEach(id => {
+          const el = document.getElementById(id);
+          if (el) el.style.display = "none";
+        });
+
         const untilEl = document.getElementById("repeat-until");
         if (untilEl) untilEl.value = "";
 
@@ -2127,14 +2162,10 @@
             return;
           }
 
-          const repeatEnabled = (document.getElementById("repeat-type")?.value || "none") !== "none";
-          const repeatDays = repeatEnabled
-            ? Array.from(document.querySelectorAll(".repeat-dow:checked")).map(cb => Number(cb.value))
-            : [];
-          const repeatUntil = repeatEnabled
-            ? String(document.getElementById("repeat-until")?.value || "").trim()
-            : "";
-
+          const repeatType = document.getElementById("repeat-type")?.value || "none";
+          const repeatEnabled = repeatType !== "none";
+          const repeatUntil = repeatEnabled ? String(document.getElementById("repeat-until")?.value || "").trim() : "";
+          
           const createPayload = {
             room_id: roomId,
             start_at: startAt,
@@ -2146,16 +2177,41 @@
           };
 
           if (repeatEnabled) {
-            if (repeatDays.length === 0) {
-              alert("반복 요일을 1개 이상 선택해 주세요.");
-              return;
-            }
             if (!/^\d{4}-\d{2}-\d{2}$/.test(repeatUntil)) {
               alert("반복 종료일(언제까지)을 선택해 주세요.");
               return;
             }
-            createPayload.repeat_days = repeatDays;
             createPayload.repeat_until = repeatUntil;
+            createPayload.repeat_type = (repeatType === "custom") ? "monthly_custom" : repeatType;
+            
+            if (repeatType === "nweekly") {
+              createPayload.repeat_interval = parseInt(document.getElementById("repeat-interval")?.value || 1);
+              createPayload.repeat_type = "weekly"; // Backend handles N-weekly as 'weekly' with interval
+            } else if (repeatType === "biweekly") {
+              createPayload.repeat_interval = 2;
+              createPayload.repeat_type = "weekly";
+            } else if (repeatType === "weekly") {
+              createPayload.repeat_interval = 1;
+            } else if (repeatType === "weekdays") {
+              createPayload.repeat_type = "weekly";
+              createPayload.repeat_interval = 1;
+            }
+
+            const repeatDays = Array.from(document.querySelectorAll(".repeat-dow:checked")).map(cb => Number(cb.value));
+            if (repeatType !== "monthly" && repeatDays.length === 0) {
+              alert("반복 요일을 1개 이상 선택해 주세요.");
+              return;
+            }
+            createPayload.repeat_days = repeatDays;
+
+            if (repeatType === "custom") {
+              const repeatWeeks = Array.from(document.querySelectorAll(".repeat-wom:checked")).map(cb => Number(cb.value));
+              if (repeatWeeks.length === 0) {
+                alert("반복할 주를 1개 이상 선택해 주세요.");
+                return;
+              }
+              createPayload.repeat_weeks_of_month = repeatWeeks;
+            }
           }
 
           const resp = await fetch("/api/office/reservations", {
@@ -2415,9 +2471,35 @@
       const selectedDays = Array.from(document.querySelectorAll(".repeat-dow:checked"))
         .map(cb => DOW_NAMES[Number(cb.value)]);
       const until = document.getElementById("repeat-until")?.value;
+      
+      let text = "";
 
-      if (selectedDays.length > 0) {
-        let text = `매주 ${selectedDays.join(", ")}요일`;
+      if (type === "weekly") {
+        text = selectedDays.length > 0 ? `매주 ${selectedDays.join(", ")}요일` : "매주 (요일 선택 필요)";
+      } else if (type === "biweekly") {
+        text = selectedDays.length > 0 ? `2주마다 ${selectedDays.join(", ")}요일` : "2주마다 (요일 선택 필요)";
+      } else if (type === "monthly") {
+        const dateVal = document.getElementById("modal-date")?.value;
+        const day = dateVal ? new Date(dateVal + "T12:00:00").getDate() : "?";
+        text = `매월 ${day}일`;
+      } else if (type === "weekdays") {
+        text = "모든 평일 (월-금)";
+      } else if (type === "nweekly") {
+        const interval = document.getElementById("repeat-interval")?.value || 1;
+        text = selectedDays.length > 0 ? `${interval}주마다 ${selectedDays.join(", ")}요일` : `${interval}주마다 (요일 선택 필요)`;
+      } else if (type === "custom") {
+        const WOM_NAMES = { "1": "첫째", "2": "둘째", "3": "셋째", "4": "넷째", "5": "마지막" };
+        const selectedWeeks = Array.from(document.querySelectorAll(".repeat-wom:checked"))
+          .map(cb => WOM_NAMES[cb.value] || cb.value);
+        
+        if (selectedWeeks.length > 0 && selectedDays.length > 0) {
+          text = `매월 ${selectedWeeks.join(", ")} 주 ${selectedDays.join(", ")}요일`;
+        } else {
+          text = "매월 (주/요일 선택 필요)";
+        }
+      }
+
+      if (text) {
         if (until) {
           const d = new Date(until + "T12:00:00");
           text += ` · ${d.getFullYear()}년 ${d.getMonth()+1}월 ${d.getDate()}일까지`;
@@ -2615,18 +2697,52 @@
         repeatTypeEl.addEventListener("change", function() {
           const val = this.value;
           const opts = document.getElementById("repeat-options");
+          
+          const nWeeklyPanel = document.getElementById("n-weekly-options");
+          const customWeeksPanel = document.getElementById("custom-weeks-options");
+          const dowPanel = document.getElementById("dow-options");
+
           if (val === "none") {
             if (opts) opts.style.display = "none";
-            document.querySelectorAll(".repeat-dow").forEach(cb => cb.checked = false);
           } else {
             if (opts) opts.style.display = "flex";
-            // 현재 날짜의 요일 자동 선택
+            
+            // Show/Hide sub-panels
+            if (nWeeklyPanel) nWeeklyPanel.style.display = (val === "nweekly") ? "flex" : "none";
+            if (customWeeksPanel) customWeeksPanel.style.display = (val === "custom") ? "flex" : "none";
+            if (dowPanel) dowPanel.style.display = (val === "monthly" || val === "weekdays") ? "none" : "flex";
+
+            // Default selection logic
             const dateVal = document.getElementById("modal-date")?.value || getSelectedDate();
             if (dateVal) {
-              document.querySelectorAll(".repeat-dow").forEach(cb => cb.checked = false);
-              const jsDay = new Date(dateVal + "T12:00:00").getDay(); // 0=일..6=토
-              const cb = document.getElementById(`dow-${jsDay}`);
-              if (cb) cb.checked = true;
+              const jsDate = new Date(dateVal + "T12:00:00");
+              const jsDay = jsDate.getDay(); // 0=Sun..6=Sat
+              
+              if (val === "weekdays") {
+                document.querySelectorAll(".repeat-dow").forEach(cb => {
+                  cb.checked = (cb.value >= 1 && cb.value <= 5);
+                });
+              } else if (val === "monthly") {
+                 // Nothing to check for monthly same-day
+              } else {
+                // For weekly, biweekly, nweekly, custom: check the current day by default if nothing checked
+                const checked = document.querySelectorAll(".repeat-dow:checked");
+                if (checked.length === 0) {
+                  const cb = document.getElementById(`dow-${jsDay}`);
+                  if (cb) cb.checked = true;
+                }
+              }
+
+              if (val === "custom") {
+                const checkedWom = document.querySelectorAll(".repeat-wom:checked");
+                if (checkedWom.length === 0) {
+                  // Figure out which week of month it is
+                  const day = jsDate.getDate();
+                  const wom = Math.ceil(day / 7);
+                  const womCb = document.getElementById(`wom-${wom}`);
+                  if (womCb) womCb.checked = true;
+                }
+              }
             }
           }
           updateRepeatSummary_();
@@ -2636,6 +2752,12 @@
       document.querySelectorAll(".repeat-dow").forEach(cb => {
         cb.addEventListener("change", updateRepeatSummary_);
       });
+      // 주차 체크박스(커스텀) 변경 시 요약 업데이트
+      document.querySelectorAll(".repeat-wom").forEach(cb => {
+        cb.addEventListener("change", updateRepeatSummary_);
+      });
+      // 간격 입력 시 요약 업데이트
+      document.getElementById("repeat-interval")?.addEventListener("input", updateRepeatSummary_);
       // 종료일 변경 시 요약 업데이트
       document.getElementById("repeat-until")?.addEventListener("change", updateRepeatSummary_);
 

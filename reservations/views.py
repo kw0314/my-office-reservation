@@ -222,6 +222,9 @@ def office_create_reservation(request: HttpRequest) -> JsonResponse:
         # Optional recurrence fields
         repeat_days = data.get("repeat_days")
         repeat_until_raw = data.get("repeat_until")
+        repeat_type = str(data.get("repeat_type") or "weekly")
+        repeat_interval = int(data.get("repeat_interval") or 1)
+        repeat_weeks_of_month = data.get("repeat_weeks_of_month") or None
         repeat_until = None
         if repeat_until_raw:
             try:
@@ -234,6 +237,8 @@ def office_create_reservation(request: HttpRequest) -> JsonResponse:
             title=title, note_internal=note, cancel_pin=cancel_pin, color=color,
             device=None, ip=request.META.get("REMOTE_ADDR"),
             repeat_days=repeat_days, repeat_until=repeat_until,
+            repeat_type=repeat_type, repeat_interval=repeat_interval,
+            repeat_weeks_of_month=repeat_weeks_of_month,
         )
 
         # Back-compat response
