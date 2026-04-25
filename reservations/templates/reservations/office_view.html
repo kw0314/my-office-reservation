@@ -872,38 +872,40 @@
 
 
     <div class="row" id="repeat-row">
-      <label>반복 예약</label>
-      <div style="display:flex;flex-direction:column;gap:10px;">
-        <label style="display:flex;align-items:center;gap:10px;font-weight:700;white-space:nowrap;">
-          <input id="repeat-enabled" type="checkbox" />
-          반복 예약 사용
-          <span style="font-size:12px;color:#888;font-weight:600;">(선택 시 요일/종료일 설정)</span>
-        </label>
+      <label>반복</label>
+      <div style="display:flex;flex-direction:column;gap:10px;flex:1;">
 
-        <div id="repeat-options" style="display:none;flex-direction:column;gap:8px;">
-          <div class="repeat-dow-group" aria-label="반복 요일 선택">
-            <input id="dow-0" type="checkbox" class="repeat-dow" value="0"><label class="dow-toggle"
-              for="dow-0">일</label>
-            <input id="dow-1" type="checkbox" class="repeat-dow" value="1"><label class="dow-toggle"
-              for="dow-1">월</label>
-            <input id="dow-2" type="checkbox" class="repeat-dow" value="2"><label class="dow-toggle"
-              for="dow-2">화</label>
-            <input id="dow-3" type="checkbox" class="repeat-dow" value="3"><label class="dow-toggle"
-              for="dow-3">수</label>
-            <input id="dow-4" type="checkbox" class="repeat-dow" value="4"><label class="dow-toggle"
-              for="dow-4">목</label>
-            <input id="dow-5" type="checkbox" class="repeat-dow" value="5"><label class="dow-toggle"
-              for="dow-5">금</label>
-            <input id="dow-6" type="checkbox" class="repeat-dow" value="6"><label class="dow-toggle"
-              for="dow-6">토</label>
+        <!-- Google Calendar 스타일: 반복 유형 드롭다운 -->
+        <select id="repeat-type" style="padding:8px 10px;border:1px solid #ddd;border-radius:8px;font-size:14px;background:#fff;cursor:pointer;">
+          <option value="none">반복 없음</option>
+          <option value="weekly">매주</option>
+        </select>
+
+        <!-- 반복 옵션 패널 (매주 선택 시 표시) -->
+        <div id="repeat-options" style="display:none;flex-direction:column;gap:12px;padding:12px;background:#f8f9fa;border-radius:8px;border:1px solid #e9ecef;">
+
+          <div style="display:flex;flex-direction:column;gap:6px;">
+            <span style="font-size:12px;color:#555;font-weight:600;">반복 요일</span>
+            <div class="repeat-dow-group" aria-label="반복 요일 선택">
+              <input id="dow-0" type="checkbox" class="repeat-dow" value="0"><label class="dow-toggle" for="dow-0">일</label>
+              <input id="dow-1" type="checkbox" class="repeat-dow" value="1"><label class="dow-toggle" for="dow-1">월</label>
+              <input id="dow-2" type="checkbox" class="repeat-dow" value="2"><label class="dow-toggle" for="dow-2">화</label>
+              <input id="dow-3" type="checkbox" class="repeat-dow" value="3"><label class="dow-toggle" for="dow-3">수</label>
+              <input id="dow-4" type="checkbox" class="repeat-dow" value="4"><label class="dow-toggle" for="dow-4">목</label>
+              <input id="dow-5" type="checkbox" class="repeat-dow" value="5"><label class="dow-toggle" for="dow-5">금</label>
+              <input id="dow-6" type="checkbox" class="repeat-dow" value="6"><label class="dow-toggle" for="dow-6">토</label>
+            </div>
           </div>
 
           <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
-            <span style="font-size:13px;color:#666;">언제까지</span>
-            <input id="repeat-until" type="date" />
-            <span style="font-size:12px;color:#888;">요일을 1개 이상 선택하면 매주 반복됩니다.</span>
+            <span style="font-size:12px;color:#555;font-weight:600;white-space:nowrap;">종료일</span>
+            <input id="repeat-until" type="date" style="flex:1;min-width:140px;padding:6px 8px;border:1px solid #ddd;border-radius:6px;" />
           </div>
+
+          <!-- 반복 요약 (Google Calendar 스타일) -->
+          <div id="repeat-summary" style="display:none;font-size:12px;color:#1f7a3a;font-weight:600;padding:7px 12px;background:#e8f5e9;border-radius:6px;border-left:3px solid #1f7a3a;"></div>
         </div>
+
       </div>
     </div>
 
@@ -1230,10 +1232,12 @@
         document.getElementById('selected-color').value = defaultColor;
 
         // repeat defaults
-        const repEn = document.getElementById("repeat-enabled");
+        const repType = document.getElementById("repeat-type");
         const repOpts = document.getElementById("repeat-options");
-        if (repEn) repEn.checked = false;
+        const repSummary = document.getElementById("repeat-summary");
+        if (repType) repType.value = "none";
         if (repOpts) repOpts.style.display = "none";
+        if (repSummary) { repSummary.textContent = ""; repSummary.style.display = "none"; }
         document.querySelectorAll(".repeat-dow").forEach(cb => cb.checked = false);
         const untilEl = document.getElementById("repeat-until");
         if (untilEl) untilEl.value = "";
@@ -2123,7 +2127,7 @@
             return;
           }
 
-          const repeatEnabled = !!document.getElementById("repeat-enabled")?.checked;
+          const repeatEnabled = (document.getElementById("repeat-type")?.value || "none") !== "none";
           const repeatDays = repeatEnabled
             ? Array.from(document.querySelectorAll(".repeat-dow:checked")).map(cb => Number(cb.value))
             : [];
@@ -2394,6 +2398,38 @@
         }
       }
     }
+
+    // === 반복 예약 요약 텍스트 업데이트 ===
+    function updateRepeatSummary_() {
+      const type = document.getElementById("repeat-type")?.value || "none";
+      const summary = document.getElementById("repeat-summary");
+      if (!summary) return;
+
+      if (type === "none") {
+        summary.textContent = "";
+        summary.style.display = "none";
+        return;
+      }
+
+      const DOW_NAMES = ["일", "월", "화", "수", "목", "금", "토"];
+      const selectedDays = Array.from(document.querySelectorAll(".repeat-dow:checked"))
+        .map(cb => DOW_NAMES[Number(cb.value)]);
+      const until = document.getElementById("repeat-until")?.value;
+
+      if (selectedDays.length > 0) {
+        let text = `매주 ${selectedDays.join(", ")}요일`;
+        if (until) {
+          const d = new Date(until + "T12:00:00");
+          text += ` · ${d.getFullYear()}년 ${d.getMonth()+1}월 ${d.getDate()}일까지`;
+        }
+        summary.textContent = text;
+        summary.style.display = "block";
+      } else {
+        summary.textContent = "";
+        summary.style.display = "none";
+      }
+    }
+
     document.addEventListener("DOMContentLoaded", () => {
       renderSelectedDateBadge();
       buildTime30Datalist();
@@ -2572,6 +2608,36 @@
         // 날짜 변경 시에는 시간 값은 유지하고, 표시만 업데이트
         modalDateEl.addEventListener("change", () => updateEndPreview_());
       }
+
+      // === 반복 예약 이벤트 리스너 ===
+      const repeatTypeEl = document.getElementById("repeat-type");
+      if (repeatTypeEl) {
+        repeatTypeEl.addEventListener("change", function() {
+          const val = this.value;
+          const opts = document.getElementById("repeat-options");
+          if (val === "none") {
+            if (opts) opts.style.display = "none";
+            document.querySelectorAll(".repeat-dow").forEach(cb => cb.checked = false);
+          } else {
+            if (opts) opts.style.display = "flex";
+            // 현재 날짜의 요일 자동 선택
+            const dateVal = document.getElementById("modal-date")?.value || getSelectedDate();
+            if (dateVal) {
+              document.querySelectorAll(".repeat-dow").forEach(cb => cb.checked = false);
+              const jsDay = new Date(dateVal + "T12:00:00").getDay(); // 0=일..6=토
+              const cb = document.getElementById(`dow-${jsDay}`);
+              if (cb) cb.checked = true;
+            }
+          }
+          updateRepeatSummary_();
+        });
+      }
+      // 요일 체크박스 변경 시 요약 업데이트
+      document.querySelectorAll(".repeat-dow").forEach(cb => {
+        cb.addEventListener("change", updateRepeatSummary_);
+      });
+      // 종료일 변경 시 요약 업데이트
+      document.getElementById("repeat-until")?.addEventListener("change", updateRepeatSummary_);
 
       // Sidebar toggle
       const sideToggle = document.getElementById("sidebar-toggle");
