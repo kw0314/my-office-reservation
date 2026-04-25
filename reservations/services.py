@@ -76,9 +76,10 @@ def _generate_repeat_dates(
                 break
             if d >= start_date:
                 result.append(d)
-                if len(result) > MAX_RECUR_OCCURRENCES:
-                    raise ValidationError(f"성성 가능한 최대 횟수를 초과합니다 (max {MAX_RECUR_OCCURRENCES}).")
             m += 1
+        result = sorted(set(result))
+        if len(result) > MAX_RECUR_OCCURRENCES:
+            raise ValidationError(f"생성 가능한 최대 횟수를 초과합니다 (max {MAX_RECUR_OCCURRENCES}).")
 
     elif repeat_type == "monthly_custom":
         if not repeat_days or not repeat_weeks_of_month:
@@ -100,7 +101,7 @@ def _generate_repeat_dates(
                 cur_m = 1
         result = sorted(set(result))
         if len(result) > MAX_RECUR_OCCURRENCES:
-            raise ValidationError(f"성성 가능한 최대 횟수를 초과합니다 (max {MAX_RECUR_OCCURRENCES}).")
+            raise ValidationError(f"생성 가능한 최대 횟수를 초과합니다 (max {MAX_RECUR_OCCURRENCES}).")
 
     else:  # weekly (handles weekly / biweekly / N-weekly / weekdays)
         if not repeat_days:
@@ -113,7 +114,7 @@ def _generate_repeat_dates(
                 result.append(cur)
                 if len(result) > MAX_RECUR_OCCURRENCES:
                     raise ValidationError(
-                        f"성성 가능한 최대 횟수를 초과합니다 (max {MAX_RECUR_OCCURRENCES})."
+                        f"생성 가능한 최대 횟수를 초과합니다 (max {MAX_RECUR_OCCURRENCES})."
                     )
             cur += timedelta(days=1)
 
@@ -269,8 +270,11 @@ def create_reservation(*, room: Room, start_at, end_at, title: str, note_interna
             "room": room.name,
             "series_id": str(series_id),
             "count": len(created),
+            "repeat_type": repeat_type,
+            "repeat_interval": repeat_interval,
             "repeat_days": repeat_days,
             "repeat_until": str(repeat_until),
+            "repeat_weeks_of_month": repeat_weeks_of_month,
             "start_time": local_start.strftime("%H:%M"),
             "duration_minutes": int(duration.total_seconds() // 60),
             "title": title_s,
