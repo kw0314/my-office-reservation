@@ -1,3 +1,4 @@
+{% load static %}
 <!doctype html>
 <html lang="ko">
 
@@ -667,6 +668,72 @@
       border-color: #1f7a3a !important;
       color: #fff !important;
     }
+
+    /* === 지도 팝업 === */
+    #map-modal {
+      width: min(700px, 95vw);
+      border: 1px solid #ddd;
+      border-radius: 12px;
+      padding: 0;
+      overflow: hidden;
+      box-shadow: 0 12px 40px rgba(0,0,0,.18);
+    }
+
+    #map-modal::backdrop {
+      background: rgba(0,0,0,.45);
+    }
+
+    .map-modal-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 12px 16px;
+      border-bottom: 1px solid #eee;
+      background: #fafafa;
+    }
+
+    .map-modal-header h3 {
+      margin: 0;
+      font-size: 15px;
+      font-weight: 700;
+    }
+
+    .map-modal-header button {
+      padding: 4px 10px;
+      border: 1px solid #ccc;
+      border-radius: 6px;
+      background: #fff;
+      cursor: pointer;
+      font-size: 13px;
+    }
+
+    .map-modal-body {
+      padding: 16px;
+      text-align: center;
+    }
+
+    .map-modal-body img {
+      max-width: 100%;
+      height: auto;
+      border-radius: 8px;
+      border: 1px solid #eee;
+    }
+
+    .btn-map {
+      padding: 6px 12px;
+      border: 1px solid #1f7a3a;
+      border-radius: 8px;
+      background: #fff;
+      color: #1f7a3a;
+      cursor: pointer;
+      font-weight: 700;
+      font-size: 13px;
+      white-space: nowrap;
+    }
+
+    .btn-map:hover {
+      background: #e8f5e9;
+    }
   </style>
 </head>
 
@@ -681,6 +748,7 @@
     </form>
     <span class="pill" id="range-pill"></span>
     <span class="muted"> 빈칸 클릭 → 예약 생성 / 예약 블록 선택 → 수정/삭제 가능</span>
+    <button type="button" class="btn-map" id="btn-map" onclick="openMapModal()">🗺️ 교리실 위치</button>
   </div>
 
   <!-- Time change banner -->
@@ -2534,7 +2602,34 @@
 
     });
 
+      // 지도 팝업
+      function openMapModal() {
+        document.getElementById('map-modal').showModal();
+      }
+      function closeMapModal() {
+        document.getElementById('map-modal').close();
+      }
+      // 바깥 영역 클릭 시 닫기
+      document.getElementById('map-modal').addEventListener('click', function(e) {
+        const rect = this.getBoundingClientRect();
+        if (e.clientX < rect.left || e.clientX > rect.right ||
+            e.clientY < rect.top  || e.clientY > rect.bottom) {
+          this.close();
+        }
+      });
   </script>
+
+  <!-- 교리실 위치 지도 팝업 -->
+  <dialog id="map-modal">
+    <div class="map-modal-header">
+      <h3>🗺️ 교리실 위치</h3>
+      <button type="button" onclick="closeMapModal()">✕ 닫기</button>
+    </div>
+    <div class="map-modal-body">
+      <img src="{% static 'reservations/room_map.png' %}" alt="교리실 위치 지도" />
+    </div>
+  </dialog>
+
 </body>
 
 </html>
