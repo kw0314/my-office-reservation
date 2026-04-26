@@ -106,16 +106,27 @@ def _generate_repeat_dates(
     else:  # weekly (handles weekly / biweekly / N-weekly / weekdays)
         if not repeat_days:
             return []
-        start_of_week = start_date - timedelta(days=_our_dow(start_date))
+        
+        # Explicitly handle biweekly if passed as type
+        if repeat_type == "biweekly":
+            repeat_interval = 2
+            
+        # Anchor point: Sunday of the starting week
+        anchor_sun = start_date - timedelta(days=_our_dow(start_date))
+        
         cur = start_date
         while cur <= repeat_until:
-            weeks = (cur - start_of_week).days // 7
-            if weeks % repeat_interval == 0 and _our_dow(cur) in repeat_days:
-                result.append(cur)
-                if len(result) > MAX_RECUR_OCCURRENCES:
-                    raise ValidationError(
-                        f"생성 가능한 최대 횟수를 초과합니다 (max {MAX_RECUR_OCCURRENCES})."
-                    )
+            # Calculate absolute week diff from anchor
+            days_diff = (cur - anchor_sun).days
+            week_no = days_diff // 7
+            
+            if week_no % repeat_interval == 0:
+                if _our_dow(cur) in repeat_days:
+                    result.append(cur)
+                    if len(result) > MAX_RECUR_OCCURRENCES:
+                        raise ValidationError(
+                            f"생성 가능한 최대 횟수를 초과합니다 (max {MAX_RECUR_OCCURRENCES})."
+                        )
             cur += timedelta(days=1)
 
     return result

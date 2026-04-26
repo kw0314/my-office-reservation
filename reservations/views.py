@@ -223,7 +223,15 @@ def office_create_reservation(request: HttpRequest) -> JsonResponse:
         repeat_days = data.get("repeat_days")
         repeat_until_raw = data.get("repeat_until")
         repeat_type = str(data.get("repeat_type") or "weekly")
-        repeat_interval = int(data.get("repeat_interval") or 1)
+        
+        # Ensure repeat_interval is at least 1
+        try:
+            repeat_interval = int(data.get("repeat_interval") or 1)
+        except (ValueError, TypeError):
+            repeat_interval = 1
+        if repeat_interval < 1:
+            repeat_interval = 1
+
         repeat_weeks_of_month = data.get("repeat_weeks_of_month") or None
         repeat_until = None
         if repeat_until_raw:
