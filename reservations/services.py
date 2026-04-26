@@ -249,7 +249,9 @@ def create_reservation(*, room: Room, start_at, end_at, title: str, note_interna
 
     series_id = uuid.uuid4()
     pin_hash = make_password(cancel_pin)
-    initial_status = Reservation.STATUS_PENDING if room.requires_approval else Reservation.STATUS_CONFIRMED
+    
+    is_approval_required = room.requires_approval or "[승인필요]" in room.name
+    initial_status = Reservation.STATUS_PENDING if is_approval_required else Reservation.STATUS_CONFIRMED
 
     instance_objs: list[Reservation] = []
     for s in instance_starts:
@@ -313,9 +315,10 @@ def update_reservation(*, reservation_id, room: Room, start_at, end_at, title: s
     if color:
         r.color = color
 
-    if room.requires_approval and r.status == Reservation.STATUS_CONFIRMED:
+    is_approval_required = room.requires_approval or "[승인필요]" in room.name
+    if is_approval_required and r.status == Reservation.STATUS_CONFIRMED:
         r.status = Reservation.STATUS_PENDING
-    elif not room.requires_approval and r.status == Reservation.STATUS_PENDING:
+    elif not is_approval_required and r.status == Reservation.STATUS_PENDING:
         r.status = Reservation.STATUS_CONFIRMED
 
     if new_cancel_pin:
@@ -427,9 +430,10 @@ def update_reservation_series(*, reservation_id, series_id: str, room: Room | No
         if new_cancel_pin:
             r.set_cancel_pin(new_cancel_pin)
 
-        if room_to_use.requires_approval and r.status == Reservation.STATUS_CONFIRMED:
+        is_approval_required = room_to_use.requires_approval or "[승인필요]" in room_to_use.name
+        if is_approval_required and r.status == Reservation.STATUS_CONFIRMED:
             r.status = Reservation.STATUS_PENDING
-        elif not room_to_use.requires_approval and r.status == Reservation.STATUS_PENDING:
+        elif not is_approval_required and r.status == Reservation.STATUS_PENDING:
             r.status = Reservation.STATUS_CONFIRMED
         
         # Apply time shift if delta was computed
