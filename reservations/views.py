@@ -138,7 +138,7 @@ def office_grid_api(request: HttpRequest) -> JsonResponse:
     rooms = list(Room.objects.filter(active=True).order_by("sort_order", "name").values("id", "name"))
 
     res_qs = Reservation.objects.filter(
-        status=Reservation.STATUS_CONFIRMED,
+        status__in=[Reservation.STATUS_CONFIRMED, Reservation.STATUS_PENDING],
         start_at__lt=day_end,
         end_at__gt=day_start,
         room__active=True,
@@ -149,7 +149,7 @@ def office_grid_api(request: HttpRequest) -> JsonResponse:
     if series_ids:
         max_ends = Reservation.objects.filter(
             series_id__in=series_ids,
-            status=Reservation.STATUS_CONFIRMED
+            status__in=[Reservation.STATUS_CONFIRMED, Reservation.STATUS_PENDING]
         ).values("series_id").annotate(max_end=Max("end_at"))
         for item in max_ends:
             series_max_ends[item["series_id"]] = item["max_end"]
@@ -166,6 +166,7 @@ def office_grid_api(request: HttpRequest) -> JsonResponse:
             "start_at": timezone.localtime(r.start_at, TZ).isoformat(),
             "end_at": timezone.localtime(r.end_at, TZ).isoformat(),
             "title": r.title,
+            "status": r.status,
             "note_internal": r.note_internal,
             "color": r.color,
             "series_id": str(r.series_id) if r.series_id else None,

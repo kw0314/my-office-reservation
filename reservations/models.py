@@ -24,6 +24,7 @@ class Room(models.Model):
     sort_order = models.PositiveIntegerField(default=0)
     location = models.CharField(max_length=120, blank=True, default="")
     active = models.BooleanField(default=True)
+    requires_approval = models.BooleanField(default=False, verbose_name="예약 승인 필요")
 
     class Meta:
         ordering = ["sort_order", "name"]
@@ -79,9 +80,11 @@ class Block(models.Model):
 
 class Reservation(models.Model):
     STATUS_CONFIRMED = "confirmed"
+    STATUS_PENDING = "pending"
     STATUS_CANCELLED = "cancelled"
     STATUS_CHOICES = [
         (STATUS_CONFIRMED, "Confirmed"),
+        (STATUS_PENDING, "Pending"),
         (STATUS_CANCELLED, "Cancelled"),
     ]
 

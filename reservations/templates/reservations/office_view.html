@@ -113,6 +113,17 @@
       background: #f3f3ff;
     }
 
+    .pending {
+      background-image: repeating-linear-gradient(
+        45deg,
+        rgba(255, 255, 255, 0.5),
+        rgba(255, 255, 255, 0.5) 10px,
+        rgba(0, 0, 0, 0.05) 10px,
+        rgba(0, 0, 0, 0.05) 20px
+      );
+      opacity: 0.85;
+    }
+
     .blocked {
       background: #fff3f3;
     }
@@ -1206,9 +1217,11 @@
             const div = document.createElement("div");
             div.style.padding = "8px 0";
             div.style.borderBottom = "1px solid #eee";
+            const titleText = (r.status === "pending") ? `[대기중] ${r.title}` : r.title;
+            const titleColor = (r.status === "pending") ? "#888" : "#000";
             div.innerHTML = `
                <div style="font-weight:600;font-size:14px;">${s} ~ ${e}</div>
-               <div style="font-size:13px;">${r.title}</div>
+               <div style="font-size:13px; color:${titleColor};">${titleText}</div>
                ${r.note_internal ? `<div class="muted" style="font-size:12px;">${r.note_internal}</div>` : ""}
              `;
             list.appendChild(div);
@@ -1707,9 +1720,16 @@
         if (resId) {
           state.resRanges[resId] = { roomId: item.room_id, si, ei: endIdx };
         }
+        
+        let finalCls = cls;
+        let finalText = text;
+        if (item.status === "pending") {
+            finalCls += " pending";
+            if (finalText) finalText = "[대기중] " + finalText;
+        }
 
         for (let i = si; i < endIdx; i++) {
-          cells[i].classList.add(cls);
+          cells[i].classList.add(...finalCls.split(" "));
           if (resId && item.color) {
             cells[i].style.backgroundColor = item.color;
             cells[i].style.borderColor = 'rgba(0,0,0,0.1)';
@@ -1719,7 +1739,7 @@
             if (i === si) cells[i].dataset.edgeStart = "1";
             if (i === endIdx - 1) cells[i].dataset.edgeEnd = "1";
           }
-          if (i === si && text) cells[i].textContent = text;
+          if (i === si && finalText) cells[i].textContent = finalText;
         }
       }
 

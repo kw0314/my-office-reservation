@@ -38,7 +38,7 @@ def _check_conflicts(*, room: Room, start_at, end_at, exclude_reservation_id=Non
         raise ValidationError("Time is blocked (unavailable).")
 
     # existing reservations overlap
-    existing = Reservation.objects.filter(room=room, status=Reservation.STATUS_CONFIRMED)
+    existing = Reservation.objects.filter(room=room, status__in=[Reservation.STATUS_CONFIRMED, Reservation.STATUS_PENDING])
     if exclude_reservation_id:
         existing = existing.exclude(id=exclude_reservation_id)
     if _overlaps(existing, start_at, end_at).exists():
@@ -232,7 +232,7 @@ def create_reservation(*, room: Room, start_at, end_at, title: str, note_interna
 
     existing_qs = Reservation.objects.filter(
         room=room,
-        status=Reservation.STATUS_CONFIRMED,
+        status__in=[Reservation.STATUS_CONFIRMED, Reservation.STATUS_PENDING],
         start_at__lt=max_end,
         end_at__gt=min_start,
     ).only("start_at", "end_at")
@@ -249,6 +249,7 @@ def create_reservation(*, room: Room, start_at, end_at, title: str, note_interna
 
     series_id = uuid.uuid4()
     pin_hash = make_password(cancel_pin)
+    initial_status = Reservation.STATUS_PENDING if room.requires_approval else Reservation.STATUS_CONFIRMED
 
     instance_objs: list[Reservation] = []
     for s in instance_starts:
@@ -258,11 +259,12 @@ def create_reservation(*, room: Room, start_at, end_at, title: str, note_interna
                 start_at=s,
                 end_at=s + duration,
                 title=title_s,
-                note_internal=note_s,
+                note_internal=note_internal,
+                cancel_pin_hash=pin_hash,
+                status=initial_status,
                 color=color,
                 created_by_device=device,
                 series_id=series_id,
-                cancel_pin_hash=pin_hash,
             )
         )
 
