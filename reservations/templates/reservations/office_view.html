@@ -2604,56 +2604,7 @@
         console.error("[init] load function not available");
       }
 
-      // === Repeat reservation UI toggle ===
-      const repEn = document.getElementById("repeat-enabled");
-      const repOpts = document.getElementById("repeat-options");
-      const untilEl2 = document.getElementById("repeat-until");
-
-      function _formatDateYYYYMMDD_(d) {
-        const y = d.getFullYear();
-        const m = String(d.getMonth() + 1).padStart(2, '0');
-        const da = String(d.getDate()).padStart(2, '0');
-        return `${y}-${m}-${da}`;
-      }
-
-      function syncRepeatUI_() {
-        const on = !!repEn?.checked;
-        if (repOpts) repOpts.style.display = on ? "flex" : "none";
-
-        if (!on) {
-          document.querySelectorAll(".repeat-dow").forEach(cb => cb.checked = false);
-          if (untilEl2) untilEl2.value = "";
-          return;
-        }
-
-        // If enabling and until is empty, default to +4 weeks from selected date
-        if (untilEl2 && !untilEl2.value) {
-          const base = (document.getElementById("date")?.value || "").trim();
-          if (/^\d{4}-\d{2}-\d{2}$/.test(base)) {
-            const d = new Date(base + "T00:00:00");
-            d.setDate(d.getDate() + 28);
-            untilEl2.value = _formatDateYYYYMMDD_(d);
-          }
-        }
-
-        // If enabling and no weekday is selected yet, auto-select the weekday of the selected date
-        const anyDowChecked = Array.from(document.querySelectorAll(".repeat-dow")).some(cb => cb.checked);
-        if (!anyDowChecked) {
-          const base2 = (document.getElementById("date")?.value || "").trim();
-          let d2 = null;
-          if (/^\d{4}-\d{2}-\d{2}$/.test(base2)) {
-            d2 = new Date(base2 + "T00:00:00");
-          } else {
-            d2 = new Date();
-          }
-          const dow = d2.getDay(); // 0=Sun ... 6=Sat
-          const cb = document.querySelector(`.repeat-dow[value="${dow}"]`) || document.getElementById(`dow-${dow}`);
-          if (cb) cb.checked = true;
-        }
-      }
-
-      if (repEn) repEn.addEventListener("change", syncRepeatUI_);
-      syncRepeatUI_();
+      // (Old repeat logic removed in favor of repeat-type logic below)
 
       // === Modal date/start/end sync + native time picker ===
       const modalDateEl = document.getElementById("modal-date");
