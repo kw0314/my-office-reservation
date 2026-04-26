@@ -10,6 +10,7 @@ from django.core.exceptions import ValidationError
 from django.http import JsonResponse, HttpRequest, HttpResponse
 from django.shortcuts import render, get_object_or_404
 from django.utils import timezone
+from django.db.models import Max
 
 from .models import Room, Reservation, Block
 from . import services
@@ -143,8 +144,22 @@ def office_grid_api(request: HttpRequest) -> JsonResponse:
         room__active=True,
     ).select_related("room")
 
+    series_ids = [r.series_id for r in res_qs if r.series_id]
+    series_max_ends = {}
+    if series_ids:
+        max_ends = Reservation.objects.filter(
+            series_id__in=series_ids,
+            status=Reservation.STATUS_CONFIRMED
+        ).values("series_id").annotate(max_end=Max("end_at"))
+        for item in max_ends:
+            series_max_ends[item["series_id"]] = item["max_end"]
+
     reservations = []
     for r in res_qs:
+        series_end_at = None
+        if r.series_id and r.series_id in series_max_ends:
+            series_end_at = timezone.localtime(series_max_ends[r.series_id], TZ).date().isoformat()
+            
         reservations.append({
             "id": str(r.id),
             "room_id": str(r.room_id),
@@ -154,6 +169,7 @@ def office_grid_api(request: HttpRequest) -> JsonResponse:
             "note_internal": r.note_internal,
             "color": r.color,
             "series_id": str(r.series_id) if r.series_id else None,
+            "series_end_at": series_end_at,
         })
 
     block_qs = Block.objects.filter(
