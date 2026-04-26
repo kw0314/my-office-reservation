@@ -69,7 +69,7 @@ def public_grid_api(request: HttpRequest) -> JsonResponse:
     d = _parse_date(request.GET.get("date"))
     slots, day_start, day_end = _build_slots(d)
 
-    rooms = list(Room.objects.filter(active=True).order_by("sort_order", "name").values("id", "name"))
+    rooms = list(Room.objects.filter(active=True).order_by("sort_order", "name").values("id", "name", "requires_approval"))
 
     res_qs = Reservation.objects.filter(
         status=Reservation.STATUS_CONFIRMED,
@@ -135,7 +135,7 @@ def office_grid_api(request: HttpRequest) -> JsonResponse:
     day_start = datetime.combine(d, OPEN_TIME, tzinfo=TZ)
     day_end = datetime.combine(d, CLOSE_TIME, tzinfo=TZ)
 
-    rooms = list(Room.objects.filter(active=True).order_by("sort_order", "name").values("id", "name"))
+    rooms = list(Room.objects.filter(active=True).order_by("sort_order", "name").values("id", "name", "requires_approval"))
 
     res_qs = Reservation.objects.filter(
         status__in=[Reservation.STATUS_CONFIRMED, Reservation.STATUS_PENDING],

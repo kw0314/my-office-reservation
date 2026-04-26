@@ -150,6 +150,12 @@
       font-size: 12px;
     }
 
+    .pill.approval {
+      background: #fef3f7;
+      color: #92400e;
+      border: 1px solid #fcd34d;
+    }
+
     /* time-change banner */
     .banner {
       display: none;
@@ -842,7 +848,10 @@
 
     <div class="row">
       <label>교리실</label>
-      <select id="room-id"></select>
+      <div style="flex:1; display:flex; flex-direction:column; gap:6px;">
+        <select id="room-id"></select>
+        <div class="hint" id="room-approval-hint" style="display:none; color:#92400e; background:#fffbeb; border:1px solid #fcd34d; padding:8px; border-radius:8px; font-size:12px; line-height:1.4;"></div>
+      </div>
     </div>
     <div id="time-fields">
 
@@ -1432,13 +1441,31 @@
       modal.showModal();
     }
 
+    function getRoomById(roomId) {
+      return state.data.rooms.find(r => String(r.id) === String(roomId));
+    }
+
+    function updateRoomApprovalHint() {
+      const room = getRoomById(document.getElementById("room-id").value);
+      const hint = document.getElementById("room-approval-hint");
+      if (!hint) return;
+      if (room && room.requires_approval) {
+        hint.textContent = "이 교리실은 관리자 승인 후 확정됩니다. 예약 후 대기 상태로 표시됩니다.";
+        hint.style.display = "";
+      } else {
+        hint.textContent = "";
+        hint.style.display = "none";
+      }
+    }
+
     function buildRoomSelect() {
       const sel = document.getElementById("room-id");
       sel.innerHTML = "";
+      sel.onchange = updateRoomApprovalHint;
       state.data.rooms.forEach(r => {
         const opt = document.createElement("option");
         opt.value = r.id;
-        opt.textContent = r.name;
+        opt.textContent = r.name + (r.requires_approval ? " [승인 필요]" : "");
         sel.appendChild(opt);
       });
     }
