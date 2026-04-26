@@ -302,7 +302,7 @@ def update_reservation(*, reservation_id, room: Room, start_at, end_at, title: s
                        device: AccessDevice | None, ip: str | None):
     r = Reservation.objects.select_for_update().get(id=reservation_id)
 
-    if r.status != Reservation.STATUS_CONFIRMED:
+    if r.status not in [Reservation.STATUS_CONFIRMED, Reservation.STATUS_PENDING]:
         raise ValidationError("Cannot update a cancelled reservation.")
 
     r.room = room
@@ -312,6 +312,11 @@ def update_reservation(*, reservation_id, room: Room, start_at, end_at, title: s
     r.note_internal = note_internal.strip()
     if color:
         r.color = color
+
+    if room.requires_approval and r.status == Reservation.STATUS_CONFIRMED:
+        r.status = Reservation.STATUS_PENDING
+    elif not room.requires_approval and r.status == Reservation.STATUS_PENDING:
+        r.status = Reservation.STATUS_CONFIRMED
 
     if new_cancel_pin:
         r.set_cancel_pin(new_cancel_pin)
@@ -342,7 +347,7 @@ def update_reservation_series(*, reservation_id, series_id: str, room: Room | No
     - `series_id` can be passed explicitly; `reservation_id` is used to locate the primary row and validate PIN prior to calling this service.
     """
     # Load all confirmed reservations in the series
-    qs = Reservation.objects.select_for_update().filter(series_id=series_id, status=Reservation.STATUS_CONFIRMED).order_by('start_at')
+    qs = Reservation.objects.select_for_update().filter(series_id=series_id, status__in=[Reservation.STATUS_CONFIRMED, Reservation.STATUS_PENDING]).order_by('start_at')
     items = list(qs)
     if not items:
         raise ValidationError("No series reservations found.")
@@ -421,6 +426,11 @@ def update_reservation_series(*, reservation_id, series_id: str, room: Room | No
             r.color = color
         if new_cancel_pin:
             r.set_cancel_pin(new_cancel_pin)
+
+        if room_to_use.requires_approval and r.status == Reservation.STATUS_CONFIRMED:
+            r.status = Reservation.STATUS_PENDING
+        elif not room_to_use.requires_approval and r.status == Reservation.STATUS_PENDING:
+            r.status = Reservation.STATUS_CONFIRMED
         
         # Apply time shift if delta was computed
         if delta is not None and anchor is not None:
@@ -458,7 +468,7 @@ def cancel_reservation(*, reservation_id, cancel_pin: str, device: AccessDevice 
                        scope: str = "single"):
     r = Reservation.objects.select_for_update().get(id=reservation_id)
 
-    if r.status != Reservation.STATUS_CONFIRMED:
+    if r.status not in [Reservation.STATUS_CONFIRMED, Reservation.STATUS_PENDING]:
         return r  # already cancelled
 
     now = timezone.now()
@@ -479,12 +489,12 @@ def cancel_reservation(*, reservation_id, cancel_pin: str, device: AccessDevice 
         targets = list(
             Reservation.objects.select_for_update().filter(
                 series_id=r.series_id,
-                status=Reservation.STATUS_CONFIRMED,
+                status__in=[Reservation.STATUS_CONFIRMED, Reservation.STATUS_PENDING],
             )
         )
 
     for t in targets:
-        if t.status != Reservation.STATUS_CONFIRMED:
+        if t.status not in [Reservation.STATUS_CONFIRMED, Reservation.STATUS_PENDING]:
             continue
         t.status = Reservation.STATUS_CANCELLED
         t.cancel_fail_count = 0
