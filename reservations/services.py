@@ -153,6 +153,9 @@ def create_reservation(*, room: Room, start_at, end_at, title: str, note_interna
     note_s = note_internal.strip()
     duration = end_at - start_at
 
+    is_approval_required = room.requires_approval or "[승인필요]" in room.name
+    initial_status = Reservation.STATUS_PENDING if is_approval_required else Reservation.STATUS_CONFIRMED
+
     def _make_oneoff(instance_start):
         r = Reservation(
             room=room,
@@ -161,6 +164,7 @@ def create_reservation(*, room: Room, start_at, end_at, title: str, note_interna
             title=title_s,
             note_internal=note_s,
             color=color,
+            status=initial_status,
             created_by_device=device,
         )
         r.set_cancel_pin(cancel_pin)
