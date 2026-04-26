@@ -399,7 +399,7 @@ def update_reservation_series(*, reservation_id, series_id: str, room: Room | No
 
         existing_qs = Reservation.objects.filter(
             room=room_to_use,
-            status=Reservation.STATUS_CONFIRMED,
+            status__in=[Reservation.STATUS_CONFIRMED, Reservation.STATUS_PENDING],
             start_at__lt=max_end,
             end_at__gt=min_start,
         ).exclude(id__in=series_ids).only('start_at', 'end_at')
