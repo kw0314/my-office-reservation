@@ -5,6 +5,7 @@ from django.utils.html import format_html
 from django.core.exceptions import PermissionDenied
 
 from .models import Room, Reservation, Block, AccessDevice, AuditLog
+from .emails import send_reservation_status_email
 
 
 @admin.register(Room)
@@ -54,7 +55,8 @@ class ReservationAdmin(admin.ModelAdmin):
         if reservation.status == Reservation.STATUS_PENDING:
             reservation.status = Reservation.STATUS_CONFIRMED
             reservation.save(update_fields=["status", "updated_at"])
-            self.message_user(request, f"예약 {reservation.id}을(를) 승인했습니다.")
+            send_reservation_status_email(reservation, 'confirmed')
+            self.message_user(request, f"예약 {reservation.id}을(를) 승인하고 알림 메일을 발송했습니다.")
         else:
             self.message_user(request, "이 예약은 이미 승인되었거나 취소된 상태입니다.", level=messages.WARNING)
 
@@ -63,13 +65,58 @@ class ReservationAdmin(admin.ModelAdmin):
 
     @admin.action(description="선택한 예약을 승인(Confirmed) 처리합니다")
     def approve_reservations(self, request, queryset):
-        updated = queryset.update(status=Reservation.STATUS_CONFIRMED)
-        self.message_user(request, f"{updated}개의 예약을 승인했습니다.")
+        pending_qs = queryset.filter(status=Reservation.STATUS_PENDING)
+        updated = 0
+        for r in pending_qs:
+            r.status = Reservation.STATUS_CONFIRMED
+            r.save(update_fields=["status", "updated_at"])
+            updated += 1
+            send_reservation_status_email(r, 'confirmed')
+        self.message_user(request, f"{updated}개의 예약을 승인하고 알림 메일을 발송했습니다.")
 
     @admin.action(description="선택한 예약을 거절/취소(Cancelled) 처리합니다")
     def reject_reservations(self, request, queryset):
-        updated = queryset.update(status=Reservation.STATUS_CANCELLED)
-        self.message_user(request, f"{updated}개의 예약을 거절했습니다.")
+        active_qs = queryset.filter(status__in=[Reservation.STATUS_CONFIRMED, Reservation.STATUS_PENDING])
+        updated = 0
+        for r in active_qs:
+            r.status = Reservation.STATUS_CANCELLED
+            r.save(update_fields=["status", "updated_at"])
+            updated += 1
+            send_reservation_status_email(r, 'cancelled')
+        self.message_user(request, f"{updated}개의 예약을 거절/취소 처리하고 알림 메일을 발송했습니다.")
+
+    def save_model(self, request, obj, form, change):
+        if change:
+            orig = Reservation.objects.get(pk=obj.pk)
+            super().save_model(request, obj, form, change)
+            
+            # 1. Cancelled
+            if orig.status != Reservation.STATUS_CANCELLED and obj.status == Reservation.STATUS_CANCELLED:
+                send_reservation_status_email(obj, 'cancelled')
+            # 2. Confirmed (Pending -> Confirmed)
+            elif orig.status == Reservation.STATUS_PENDING and obj.status == Reservation.STATUS_CONFIRMED:
+                send_reservation_status_email(obj, 'confirmed')
+            # 3. Modified (time, room, title changed, but not currently cancelled)
+            elif obj.status != Reservation.STATUS_CANCELLED and (
+                orig.room != obj.room or 
+                orig.start_at != obj.start_at or 
+                orig.end_at != obj.end_at or 
+                orig.title != obj.title
+            ):
+                send_reservation_status_email(obj, 'modified')
+        else:
+            super().save_model(request, obj, form, change)
+            if obj.status == Reservation.STATUS_CONFIRMED:
+                send_reservation_status_email(obj, 'confirmed')
+
+    def delete_model(self, request, obj):
+        send_reservation_status_email(obj, 'cancelled')
+        super().delete_model(request, obj)
+
+    def delete_queryset(self, request, queryset):
+        for obj in queryset:
+            send_reservation_status_email(obj, 'cancelled')
+        super().delete_queryset(request, queryset)
 
 
 @admin.register(Block)

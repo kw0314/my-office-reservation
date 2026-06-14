@@ -10,6 +10,7 @@ from django.utils import timezone
 from django.contrib.auth.hashers import make_password
 
 from .models import Reservation, Block, Room, AccessDevice, AuditLog
+from .emails import send_reservation_status_email
 
 TZ = ZoneInfo("America/Chicago")
 
@@ -137,6 +138,7 @@ def _generate_repeat_dates(
 def create_reservation(*, room: Room, start_at, end_at, title: str, note_internal: str,
                        cancel_pin: str, color: str = "#e3f2fd",
                        device: AccessDevice | None, ip: str | None,
+                       email: str | None = None,
                        repeat_days: list[int] | None = None,
                        repeat_until: date | None = None,
                        repeat_interval: int = 1,
@@ -166,6 +168,7 @@ def create_reservation(*, room: Room, start_at, end_at, title: str, note_interna
             color=color,
             status=initial_status,
             created_by_device=device,
+            email=email.strip() if email else None,
         )
         r.set_cancel_pin(cancel_pin)
         r.full_clean()
@@ -185,6 +188,9 @@ def create_reservation(*, room: Room, start_at, end_at, title: str, note_interna
             ip=ip,
             detail={"room": room.name, "start_at": str(r.start_at), "end_at": str(r.end_at), "title": r.title},
         )
+        # Send email notification if confirmed (PENDING status will be emailed on approval)
+        if r.status == Reservation.STATUS_CONFIRMED:
+            send_reservation_status_email(r, 'confirmed')
         return r
 
     # --- recurring ---
@@ -271,6 +277,7 @@ def create_reservation(*, room: Room, start_at, end_at, title: str, note_interna
                 color=color,
                 created_by_device=device,
                 series_id=series_id,
+                email=email.strip() if email else None,
             )
         )
 
@@ -278,6 +285,11 @@ def create_reservation(*, room: Room, start_at, end_at, title: str, note_interna
     Reservation.objects.bulk_create(instance_objs)
 
     created = instance_objs
+
+    # Send email notifications for confirmed reservations in the series
+    if initial_status == Reservation.STATUS_CONFIRMED:
+        for item in created:
+            send_reservation_status_email(item, 'confirmed')
 
     AuditLog.objects.create(
         actor_type=AuditLog.ACTOR_DEVICE if device else AuditLog.ACTOR_ADMIN,
@@ -305,7 +317,7 @@ def create_reservation(*, room: Room, start_at, end_at, title: str, note_interna
 @transaction.atomic
 def update_reservation(*, reservation_id, room: Room, start_at, end_at, title: str,
                        note_internal: str, color: str = None, new_cancel_pin: str | None,
-                       device: AccessDevice | None, ip: str | None):
+                       device: AccessDevice | None, ip: str | None, email: str | None = None):
     r = Reservation.objects.select_for_update().get(id=reservation_id)
 
     if r.status not in [Reservation.STATUS_CONFIRMED, Reservation.STATUS_PENDING]:
@@ -318,6 +330,8 @@ def update_reservation(*, reservation_id, room: Room, start_at, end_at, title: s
     r.note_internal = note_internal.strip()
     if color:
         r.color = color
+    if email is not None:
+        r.email = email.strip() if email else None
 
     is_approval_required = room.requires_approval or "[승인필요]" in room.name
     if is_approval_required and r.status == Reservation.STATUS_CONFIRMED:
@@ -345,7 +359,8 @@ def update_reservation(*, reservation_id, room: Room, start_at, end_at, title: s
 def update_reservation_series(*, reservation_id, series_id: str, room: Room | None,
                               start_at=None, end_at=None,
                               title: str | None, note_internal: str | None, color: str | None = None,
-                              new_cancel_pin: str | None, device: AccessDevice | None, ip: str | None):
+                              new_cancel_pin: str | None, device: AccessDevice | None, ip: str | None,
+                              email: str | None = None):
     """
     Update all reservations in a series (title, note, cancel pin, and optionally time).
     
@@ -431,6 +446,8 @@ def update_reservation_series(*, reservation_id, series_id: str, room: Room | No
             r.note_internal = note_internal.strip()
         if color is not None:
             r.color = color
+        if email is not None:
+            r.email = email.strip() if email else None
         if new_cancel_pin:
             r.set_cancel_pin(new_cancel_pin)
 
@@ -508,6 +525,8 @@ def cancel_reservation(*, reservation_id, cancel_pin: str, device: AccessDevice 
         t.cancel_fail_count = 0
         t.cancel_locked_until = None
         t.save(update_fields=["status", "cancel_fail_count", "cancel_locked_until", "updated_at"])
+        # Send cancellation email to requester
+        send_reservation_status_email(t, 'cancelled')
 
     AuditLog.objects.create(
         actor_type=AuditLog.ACTOR_DEVICE if device else AuditLog.ACTOR_ADMIN,

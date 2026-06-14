@@ -13,6 +13,6 @@ class Migration(migrations.Migration):
         migrations.AddField(
             model_name='reservation',
             name='email',
-            field=models.EmailField(blank=True, max_length=254, null=True, verbose_name='신청자 이메일'),
+            field=models.EmailField(blank=False, max_length=254, null=False, verbose_name='신청자 이메일'),
         ),
     ]
