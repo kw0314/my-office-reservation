@@ -118,6 +118,9 @@ class Reservation(models.Model):
     # Color of the reservation block (CSS hex/color)
     color = models.CharField(max_length=20, default="#e3f2fd")
 
+    # Requester's email for notifications
+    email = models.EmailField(max_length=254, blank=True, null=True, verbose_name="신청자 이메일")
+
     class Meta:
         indexes = [
             models.Index(fields=["room", "start_at"]),
