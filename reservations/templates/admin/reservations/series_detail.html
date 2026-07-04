@@ -103,7 +103,7 @@
     {% for item in items %}
     <tr>
       <td class="row-num">{{ forloop.counter }}</td>
-      <td style="font-weight:600">{{ item.start_local|truncatechars:10 }}</td>
+      <td style="font-weight:600">{{ item.start_local|slice:":10" }}</td>
       <td>{{ item.start_local|slice:"11:" }} ~ {{ item.end_local }}</td>
       <td>
         {% if item.status == "confirmed" %}
