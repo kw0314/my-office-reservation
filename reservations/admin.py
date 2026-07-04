@@ -148,11 +148,6 @@ class ReservationAdmin(admin.ModelAdmin):
         urls = super().get_urls()
         custom_urls = [
             path(
-                "<path:object_id>/approve/",
-                self.admin_site.admin_view(self.approve_view),
-                name="reservations_reservation_approve",
-            ),
-            path(
                 "series/<path:series_id>/approve/",
                 self.admin_site.admin_view(self.approve_series_view),
                 name="reservations_reservation_approve_series",
@@ -166,6 +161,11 @@ class ReservationAdmin(admin.ModelAdmin):
                 "series/<path:series_id>/detail/",
                 self.admin_site.admin_view(self.series_detail_view),
                 name="reservations_reservation_series_detail",
+            ),
+            path(
+                "<path:object_id>/approve/",
+                self.admin_site.admin_view(self.approve_view),
+                name="reservations_reservation_approve",
             ),
         ]
         return custom_urls + urls
