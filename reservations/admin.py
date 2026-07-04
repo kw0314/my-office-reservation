@@ -43,9 +43,10 @@ class SeriesFilter(admin.SimpleListFilter):
 @admin.register(Reservation)
 class ReservationAdmin(admin.ModelAdmin):
     list_display = (
-        "room", "start_at_local", "end_at_local", "title", "status_badge",
+        "room_link", "start_at_local", "end_at_local", "title_link", "status_badge",
         "series_info", "approve_button",
     )
+    list_display_links = None
     list_filter = ("status", "room", SeriesFilter)
     search_fields = ("title", "note_internal", "email")
     ordering = ("-start_at",)
@@ -72,6 +73,22 @@ class ReservationAdmin(admin.ModelAdmin):
         )
 
     # ── Custom list columns ──────────────────────────────────────
+
+    @admin.display(description="회의실")
+    def room_link(self, obj):
+        if obj.series_id:
+            url = reverse("admin:reservations_reservation_series_detail", args=[obj.series_id])
+        else:
+            url = reverse("admin:reservations_reservation_change", args=[obj.pk])
+        return format_html('<a href="{}" style="font-weight:600">{}</a>', url, obj.room.name)
+
+    @admin.display(description="제목")
+    def title_link(self, obj):
+        if obj.series_id:
+            url = reverse("admin:reservations_reservation_series_detail", args=[obj.series_id])
+        else:
+            url = reverse("admin:reservations_reservation_change", args=[obj.pk])
+        return format_html('<a href="{}">{}</a>', url, obj.title)
 
     @admin.display(description="시작", ordering="start_at")
     def start_at_local(self, obj):

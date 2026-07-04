@@ -96,7 +96,7 @@
       <th>날짜</th>
       <th>시간</th>
       <th>상태</th>
-      <th>예약 ID</th>
+      <th>관리</th>
     </tr>
   </thead>
   <tbody>
@@ -116,8 +116,9 @@
       </td>
       <td>
         <a href="{% url 'admin:reservations_reservation_change' item.pk %}"
-           style="color:#3b82f6;text-decoration:none;font-size:13px">
-          #{{ item.pk }}
+           style="display:inline-block; background:#e2e8f0; color:#475569; padding:4px 10px; border-radius:6px; text-decoration:none; font-size:12px; font-weight:600; transition: background 0.2s;"
+           onmouseover="this.style.background='#cbd5e1'" onmouseout="this.style.background='#e2e8f0'">
+          수정/취소
         </a>
       </td>
     </tr>
