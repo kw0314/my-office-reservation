@@ -15,6 +15,11 @@ def send_reservation_status_email(reservation, event_type):
     """
     event_type: 'confirmed' | 'modified' | 'cancelled'
     """
+    # TODO: 이메일 전송 비활성화 — 반복 예약 시 동기 전송으로 인한 성능 문제 방지.
+    #       비동기 큐(Celery 등) 또는 시리즈 요약 이메일로 전환 후 재활성화 필요.
+    logger.info(f"Email sending disabled. Would have sent '{event_type}' to {reservation.email}")
+    return
+
     if not reservation.email:
         return
         
