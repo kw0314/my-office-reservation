@@ -3,7 +3,7 @@ from django.http import Http404, HttpResponseRedirect
 from django.urls import path, reverse
 from django.utils.html import format_html
 from django.core.exceptions import PermissionDenied
-from django.db.models import Count, Q
+from django.db.models import Count, Q, OuterRef, Subquery, Case, When, Value, IntegerField
 from django.template.response import TemplateResponse
 from django.utils import timezone
 from zoneinfo import ZoneInfo
@@ -52,6 +52,24 @@ class ReservationAdmin(admin.ModelAdmin):
     actions = ["approve_reservations", "reject_reservations",
                "approve_series_reservations", "reject_series_reservations"]
     list_per_page = 50
+
+    def get_queryset(self, request):
+        qs = super().get_queryset(request)
+        
+        first_in_series = Reservation.objects.filter(
+            series_id=OuterRef("series_id")
+        ).annotate(
+            is_pending=Case(
+                When(status=Reservation.STATUS_PENDING, then=Value(0)),
+                default=Value(1),
+                output_field=IntegerField(),
+            )
+        ).order_by("is_pending", "start_at").values("pk")[:1]
+        
+        return qs.filter(
+            Q(series_id__isnull=True) | 
+            Q(pk=Subquery(first_in_series))
+        )
 
     # ── Custom list columns ──────────────────────────────────────
 
@@ -107,18 +125,15 @@ class ReservationAdmin(admin.ModelAdmin):
     @admin.display(description="승인")
     def approve_button(self, obj):
         if obj.status == Reservation.STATUS_PENDING:
-            single_url = reverse("admin:reservations_reservation_approve", args=[obj.pk])
             if obj.series_id:
                 series_url = reverse("admin:reservations_reservation_approve_series", args=[obj.series_id])
                 return format_html(
-                    '<a class="button" href="{}" style="margin-right:4px;font-size:12px;'
-                    'padding:4px 10px;background:#16a34a;color:#fff;border-radius:6px;'
-                    'text-decoration:none">승인</a>'
                     '<a class="button" href="{}" style="font-size:12px;padding:4px 10px;'
                     'background:#7c3aed;color:#fff;border-radius:6px;text-decoration:none">'
-                    '시리즈 전체 승인</a>',
-                    single_url, series_url,
+                    '시리즈 승인</a>',
+                    series_url,
                 )
+            single_url = reverse("admin:reservations_reservation_approve", args=[obj.pk])
             return format_html(
                 '<a class="button" href="{}" style="font-size:12px;padding:4px 10px;'
                 'background:#16a34a;color:#fff;border-radius:6px;text-decoration:none">'
