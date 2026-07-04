@@ -255,6 +255,31 @@ class ReservationAdmin(admin.ModelAdmin):
     # ── Series detail page ───────────────────────────────────────
 
     def series_detail_view(self, request, series_id):
+        if request.method == "POST":
+            action = request.POST.get("action")
+            selected_ids = request.POST.getlist("selected_items")
+            
+            if action and selected_ids:
+                qs = Reservation.objects.filter(pk__in=selected_ids, series_id=series_id)
+                count = 0
+                if action == "approve_selected":
+                    for r in qs.filter(status=Reservation.STATUS_PENDING):
+                        r.status = Reservation.STATUS_CONFIRMED
+                        r.save(update_fields=["status", "updated_at"])
+                        send_reservation_status_email(r, 'confirmed')
+                        count += 1
+                    self.message_user(request, f"선택한 항목 {count}건을 승인했습니다.", level=messages.SUCCESS)
+                
+                elif action == "reject_selected":
+                    for r in qs.filter(status__in=[Reservation.STATUS_CONFIRMED, Reservation.STATUS_PENDING]):
+                        r.status = Reservation.STATUS_CANCELLED
+                        r.save(update_fields=["status", "updated_at"])
+                        send_reservation_status_email(r, 'cancelled')
+                        count += 1
+                    self.message_user(request, f"선택한 항목 {count}건을 거절/취소했습니다.", level=messages.SUCCESS)
+                    
+            return HttpResponseRedirect(request.path)
+
         items = list(
             Reservation.objects.filter(series_id=series_id)
             .select_related("room")

@@ -28,6 +28,12 @@
   .btn-approve { background: #16a34a; color: #fff; }
   .btn-reject { background: #dc2626; color: #fff; }
   .btn-back { background: #e2e8f0; color: #475569; }
+  .action-bar button {
+    display: inline-flex; align-items: center; gap: 6px; padding: 10px 22px; border-radius: 8px;
+    font-size: 14px; font-weight: 600; border: none; cursor: pointer; transition: opacity 0.15s;
+    font-family: inherit;
+  }
+  .action-bar button:hover { opacity: 0.85; }
 
   .series-table { width: 100%; border-collapse: separate; border-spacing: 0; border-radius: 12px;
     overflow: hidden; border: 1px solid #e2e8f0; }
@@ -73,26 +79,41 @@
   </div>
 </div>
 
-<div class="action-bar">
-  {% if pending_count > 0 %}
-  <a href="{{ approve_url }}" class="btn-approve"
-     onclick="return confirm('시리즈 전체 대기 중인 {{ pending_count }}건을 승인합니다. 계속하시겠습니까?')">
-    ✅ 전체 승인 ({{ pending_count }}건)
-  </a>
-  {% endif %}
-  {% if pending_count > 0 or confirmed_count > 0 %}
-  <a href="{{ reject_url }}" class="btn-reject"
-     onclick="return confirm('시리즈 전체를 거절/취소합니다. 이 작업은 되돌릴 수 없습니다. 계속하시겠습니까?')">
-    ❌ 전체 거절/취소
-  </a>
-  {% endif %}
-  <a href="{{ changelist_url }}" class="btn-back">← 목록으로</a>
-</div>
+<form method="POST" action="">
+  {% csrf_token %}
+  <div class="action-bar">
+    {% if pending_count > 0 %}
+    <a href="{{ approve_url }}" class="btn-approve"
+       onclick="return confirm('시리즈 전체 대기 중인 {{ pending_count }}건을 승인합니다. 계속하시겠습니까?')">
+      ✅ 전체 승인 ({{ pending_count }}건)
+    </a>
+    {% endif %}
+    {% if pending_count > 0 or confirmed_count > 0 %}
+    <a href="{{ reject_url }}" class="btn-reject"
+       onclick="return confirm('시리즈 전체를 거절/취소합니다. 이 작업은 되돌릴 수 없습니다. 계속하시겠습니까?')">
+      ❌ 전체 거절/취소
+    </a>
+    {% endif %}
+    
+    <span style="border-left: 1px solid #cbd5e1; margin: 0 4px;"></span>
+    
+    <button type="submit" name="action" value="approve_selected" class="btn-approve"
+            onclick="return confirm('선택한 항목을 승인하시겠습니까?')">
+      ✅ 선택 승인
+    </button>
+    <button type="submit" name="action" value="reject_selected" class="btn-reject"
+            onclick="return confirm('선택한 항목을 거절/취소하시겠습니까?')">
+      ❌ 선택 거절/취소
+    </button>
 
-<table class="series-table">
-  <thead>
-    <tr>
-      <th>#</th>
+    <a href="{{ changelist_url }}" class="btn-back">← 목록으로</a>
+  </div>
+
+  <table class="series-table">
+    <thead>
+      <tr>
+        <th style="width: 30px; text-align: center;"><input type="checkbox" id="select-all"></th>
+        <th>#</th>
       <th>날짜</th>
       <th>시간</th>
       <th>상태</th>
@@ -102,6 +123,7 @@
   <tbody>
     {% for item in items %}
     <tr>
+      <td style="text-align: center;"><input type="checkbox" name="selected_items" value="{{ item.pk }}" class="item-checkbox"></td>
       <td class="row-num">{{ forloop.counter }}</td>
       <td style="font-weight:600">{{ item.start_local|slice:":10" }}</td>
       <td>{{ item.start_local|slice:"11:" }} ~ {{ item.end_local }}</td>
@@ -125,4 +147,14 @@
     {% endfor %}
   </tbody>
 </table>
+</form>
+
+<script>
+  document.getElementById('select-all').addEventListener('change', function(e) {
+    var checkboxes = document.querySelectorAll('.item-checkbox');
+    for (var i = 0; i < checkboxes.length; i++) {
+      checkboxes[i].checked = e.target.checked;
+    }
+  });
+</script>
 {% endblock %}
