@@ -57,20 +57,24 @@ class ReservationAdmin(admin.ModelAdmin):
     def get_queryset(self, request):
         qs = super().get_queryset(request)
         
-        first_in_series = Reservation.objects.filter(
-            series_id=OuterRef("series_id")
-        ).annotate(
-            is_pending=Case(
-                When(status=Reservation.STATUS_PENDING, then=Value(0)),
-                default=Value(1),
-                output_field=IntegerField(),
+        # Only group by series on the changelist view
+        if request.resolver_match and request.resolver_match.url_name == 'reservations_reservation_changelist':
+            first_in_series = Reservation.objects.filter(
+                series_id=OuterRef("series_id")
+            ).annotate(
+                is_pending=Case(
+                    When(status=Reservation.STATUS_PENDING, then=Value(0)),
+                    default=Value(1),
+                    output_field=IntegerField(),
+                )
+            ).order_by("is_pending", "start_at").values("pk")[:1]
+            
+            qs = qs.filter(
+                Q(series_id__isnull=True) | 
+                Q(pk=Subquery(first_in_series))
             )
-        ).order_by("is_pending", "start_at").values("pk")[:1]
-        
-        return qs.filter(
-            Q(series_id__isnull=True) | 
-            Q(pk=Subquery(first_in_series))
-        )
+            
+        return qs
 
     # ── Custom list columns ──────────────────────────────────────
 
