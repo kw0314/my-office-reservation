@@ -1,0 +1,127 @@
+{% extends "admin/base_site.html" %}
+{% load i18n %}
+
+{% block title %}{{ title }}{% endblock %}
+
+{% block content %}
+<style>
+  .series-header { margin-bottom: 24px; }
+  .series-header h2 { margin: 0 0 8px; font-size: 22px; color: #1e293b; }
+  .series-meta { display: flex; gap: 12px; flex-wrap: wrap; align-items: center; margin-bottom: 16px; }
+  .series-meta .tag { padding: 4px 14px; border-radius: 20px; font-size: 13px; font-weight: 600; }
+  .tag-room { background: #e0f2fe; color: #0369a1; }
+  .tag-id { background: #f1f5f9; color: #64748b; font-family: monospace; font-size: 12px; }
+
+  .stats-row { display: flex; gap: 16px; margin-bottom: 24px; flex-wrap: wrap; }
+  .stat-card { padding: 16px 24px; border-radius: 12px; min-width: 120px; text-align: center; }
+  .stat-card .num { font-size: 28px; font-weight: 700; }
+  .stat-card .label { font-size: 12px; font-weight: 600; margin-top: 2px; }
+  .stat-total { background: #f1f5f9; color: #334155; }
+  .stat-pending { background: #fef3c7; color: #92400e; }
+  .stat-confirmed { background: #dcfce7; color: #166534; }
+  .stat-cancelled { background: #fee2e2; color: #991b1b; }
+
+  .action-bar { display: flex; gap: 10px; margin-bottom: 24px; flex-wrap: wrap; }
+  .action-bar a { display: inline-flex; align-items: center; gap: 6px; padding: 10px 22px; border-radius: 8px;
+    font-size: 14px; font-weight: 600; text-decoration: none; transition: opacity 0.15s; cursor: pointer; }
+  .action-bar a:hover { opacity: 0.85; }
+  .btn-approve { background: #16a34a; color: #fff; }
+  .btn-reject { background: #dc2626; color: #fff; }
+  .btn-back { background: #e2e8f0; color: #475569; }
+
+  .series-table { width: 100%; border-collapse: separate; border-spacing: 0; border-radius: 12px;
+    overflow: hidden; border: 1px solid #e2e8f0; }
+  .series-table th { background: #f8fafc; color: #64748b; font-size: 12px; font-weight: 600;
+    text-transform: uppercase; letter-spacing: 0.5px; padding: 12px 16px; text-align: left;
+    border-bottom: 2px solid #e2e8f0; }
+  .series-table td { padding: 10px 16px; border-bottom: 1px solid #f1f5f9; font-size: 14px; color: #334155; }
+  .series-table tr:last-child td { border-bottom: none; }
+  .series-table tr:hover td { background: #f8fafc; }
+
+  .badge { padding: 3px 10px; border-radius: 12px; font-size: 12px; font-weight: 600; white-space: nowrap; }
+  .badge-confirmed { background: #dcfce7; color: #16a34a; }
+  .badge-pending { background: #fef3c7; color: #d97706; }
+  .badge-cancelled { background: #fee2e2; color: #dc2626; }
+
+  .row-num { color: #94a3b8; font-size: 12px; font-weight: 600; }
+</style>
+
+<div class="series-header">
+  <h2>🔁 {{ series_title }}</h2>
+  <div class="series-meta">
+    <span class="tag tag-room">📍 {{ room_name }}</span>
+    <span class="tag tag-id">ID: {{ series_id|truncatechars:12 }}</span>
+  </div>
+</div>
+
+<div class="stats-row">
+  <div class="stat-card stat-total">
+    <div class="num">{{ total_count }}</div>
+    <div class="label">전체</div>
+  </div>
+  <div class="stat-card stat-pending">
+    <div class="num">{{ pending_count }}</div>
+    <div class="label">대기</div>
+  </div>
+  <div class="stat-card stat-confirmed">
+    <div class="num">{{ confirmed_count }}</div>
+    <div class="label">확정</div>
+  </div>
+  <div class="stat-card stat-cancelled">
+    <div class="num">{{ cancelled_count }}</div>
+    <div class="label">취소</div>
+  </div>
+</div>
+
+<div class="action-bar">
+  {% if pending_count > 0 %}
+  <a href="{{ approve_url }}" class="btn-approve"
+     onclick="return confirm('시리즈 전체 대기 중인 {{ pending_count }}건을 승인합니다. 계속하시겠습니까?')">
+    ✅ 전체 승인 ({{ pending_count }}건)
+  </a>
+  {% endif %}
+  {% if pending_count > 0 or confirmed_count > 0 %}
+  <a href="{{ reject_url }}" class="btn-reject"
+     onclick="return confirm('시리즈 전체를 거절/취소합니다. 이 작업은 되돌릴 수 없습니다. 계속하시겠습니까?')">
+    ❌ 전체 거절/취소
+  </a>
+  {% endif %}
+  <a href="{{ changelist_url }}" class="btn-back">← 목록으로</a>
+</div>
+
+<table class="series-table">
+  <thead>
+    <tr>
+      <th>#</th>
+      <th>날짜</th>
+      <th>시간</th>
+      <th>상태</th>
+      <th>예약 ID</th>
+    </tr>
+  </thead>
+  <tbody>
+    {% for item in items %}
+    <tr>
+      <td class="row-num">{{ forloop.counter }}</td>
+      <td style="font-weight:600">{{ item.start_local|truncatechars:10 }}</td>
+      <td>{{ item.start_local|slice:"11:" }} ~ {{ item.end_local }}</td>
+      <td>
+        {% if item.status == "confirmed" %}
+          <span class="badge badge-confirmed">확정</span>
+        {% elif item.status == "pending" %}
+          <span class="badge badge-pending">대기</span>
+        {% else %}
+          <span class="badge badge-cancelled">취소</span>
+        {% endif %}
+      </td>
+      <td>
+        <a href="{% url 'admin:reservations_reservation_change' item.pk %}"
+           style="color:#3b82f6;text-decoration:none;font-size:13px">
+          #{{ item.pk }}
+        </a>
+      </td>
+    </tr>
+    {% endfor %}
+  </tbody>
+</table>
+{% endblock %}

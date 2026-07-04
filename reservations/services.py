@@ -16,7 +16,7 @@ TZ = ZoneInfo("America/Chicago")
 
 # Safety cap: recurring series can create many rows and heavy conflict checks.
 # Keep this small to avoid timeouts and accidental large writes.
-MAX_RECUR_OCCURRENCES = 60
+MAX_RECUR_OCCURRENCES = 300
 
 
 def _our_dow(d: date) -> int:
