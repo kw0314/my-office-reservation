@@ -1423,7 +1423,7 @@
       state.data.rooms.forEach(r => {
         const opt = document.createElement("option");
         opt.value = r.id;
-        opt.textContent = r.name + (r.requires_approval ? " [승인 필요]" : "");
+        opt.textContent = r.name;
         sel.appendChild(opt);
       });
     }
