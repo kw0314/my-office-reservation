@@ -14,6 +14,7 @@ from django.db.models import Max
 
 from .models import Room, Reservation, Block
 from . import services
+from .emails import send_reservation_status_email
 
 TZ = ZoneInfo("America/Chicago")
 OPEN_TIME = time(9, 0)
@@ -169,6 +170,7 @@ def office_grid_api(request: HttpRequest) -> JsonResponse:
             "status": r.status,
             "note_internal": r.note_internal,
             "color": r.color,
+            "email": r.email,
             "series_id": str(r.series_id) if r.series_id else None,
             "series_end_at": series_end_at,
         })
@@ -235,6 +237,7 @@ def office_create_reservation(request: HttpRequest) -> JsonResponse:
         note = data.get("note_internal", "")
         color = data.get("color", "#e3f2fd")
         cancel_pin = data.get("cancel_pin", "")
+        email = data.get("email", "")
 
         # Optional recurrence fields
         repeat_days = data.get("repeat_days")
@@ -261,6 +264,7 @@ def office_create_reservation(request: HttpRequest) -> JsonResponse:
             room=room, start_at=start_at, end_at=end_at,
             title=title, note_internal=note, cancel_pin=cancel_pin, color=color,
             device=None, ip=request.META.get("REMOTE_ADDR"),
+            email=email,
             repeat_days=repeat_days, repeat_until=repeat_until,
             repeat_type=repeat_type, repeat_interval=repeat_interval,
             repeat_weeks_of_month=repeat_weeks_of_month,
@@ -297,6 +301,7 @@ def office_update_reservation(request: HttpRequest, rid) -> JsonResponse:
         note = data.get("note_internal", "")
         color = data.get("color")
         new_pin = data.get("new_cancel_pin") or None
+        email = data.get("email")
 
         # PIN verification required for edits/cancels
         cancel_pin = data.get("cancel_pin") or ""
@@ -332,6 +337,7 @@ def office_update_reservation(request: HttpRequest, rid) -> JsonResponse:
                 new_cancel_pin=new_pin,
                 device=None,
                 ip=request.META.get("REMOTE_ADDR"),
+                email=email,
             )
             print(f"Series update applied: {len(updated_items)} instances (series_id={series_id})")
             updated_list = []
@@ -345,6 +351,8 @@ def office_update_reservation(request: HttpRequest, rid) -> JsonResponse:
                     "note_internal": u.note_internal,
                     "series_id": str(u.series_id) if u.series_id else None,
                 })
+                # Send modification email for each updated reservation
+                send_reservation_status_email(u, 'modified')
             return JsonResponse({"ok": True, "count": len(updated_items), "updated": updated_list})
 
         # Single reservation update (PIN already verified above)
@@ -353,7 +361,11 @@ def office_update_reservation(request: HttpRequest, rid) -> JsonResponse:
             room=room, start_at=start_at, end_at=end_at,
             title=title, note_internal=note, color=color, new_cancel_pin=new_pin,
             device=None, ip=request.META.get("REMOTE_ADDR"),
+            email=email,
         )
+        # Send modification email notification
+        updated_reservation = Reservation.objects.get(id=rid)
+        send_reservation_status_email(updated_reservation, 'modified')
         return JsonResponse({"ok": True})
     except (KeyError, Room.DoesNotExist):
         return JsonResponse({"ok": False, "error": "Invalid room_id or payload."}, status=400)

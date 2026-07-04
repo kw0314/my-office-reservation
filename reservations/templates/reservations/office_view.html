@@ -939,6 +939,10 @@
       <label>단체명(공개)</label>
       <input id="title" type="text" placeholder="예: 유스그룹" />
     </div>
+    <div class="row">
+      <label>신청자 이메일 <span style="color: red;">*</span></label>
+      <input id="email" type="email" placeholder="예: user@example.com (알림 수신용)" required style="flex:1; padding:8px 10px; border:1px solid #ddd; border-radius:8px; font-size:14px;" />
+    </div>
 
     <div class="row">
       <label>내부 메모</label>
@@ -1223,6 +1227,7 @@
         }
 
         document.getElementById("title").value = "";
+        document.getElementById("email").value = "";
         document.getElementById("note").value = "";
         document.getElementById("pin").value = "";
         document.getElementById("new-pin").value = "";
@@ -1296,6 +1301,7 @@
       if (endEl) endEl.value = eHH;
 
       document.getElementById("title").value = r.title || "";
+      document.getElementById("email").value = r.email || "";
       document.getElementById("note").value = r.note_internal || "";
       document.getElementById("pin").value = "";
       document.getElementById("new-pin").value = "";
@@ -1417,7 +1423,7 @@
       state.data.rooms.forEach(r => {
         const opt = document.createElement("option");
         opt.value = r.id;
-        opt.textContent = r.name + (r.requires_approval ? " [승인 필요]" : "");
+        opt.textContent = r.name;
         sel.appendChild(opt);
       });
     }
@@ -2160,12 +2166,24 @@
         }
 
         const title = document.getElementById("title").value;
+        const email = document.getElementById("email").value;
         const note = document.getElementById("note").value;
         const color = document.getElementById("selected-color").value;
         const pin = document.getElementById("pin").value;
 
         if (!title.trim()) {
           alert("단체명을 입력해 주세요.");
+          return;
+        }
+
+        if (!email.trim()) {
+          alert("신청자 이메일을 입력해 주세요.");
+          return;
+        }
+
+        // Simple email validation
+        if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim())) {
+          alert("올바른 이메일 형식을 입력해 주세요.");
           return;
         }
 
@@ -2187,7 +2205,8 @@
             title,
             note_internal: note,
             color,
-            cancel_pin: pin
+            cancel_pin: pin,
+            email: email
           };
 
           if (repeatEnabled) {
@@ -2269,7 +2288,8 @@
             note_internal: note,
             color,
             cancel_pin: pin,
-            scope: scope
+            scope: scope,
+            email: email
           };
           if (newPin) editPayload["new_cancel_pin"] = newPin;
 
