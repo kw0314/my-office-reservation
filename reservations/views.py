@@ -22,7 +22,6 @@ CLOSE_TIME = time(20, 0)
 SLOT_MINUTES = 30
 
 def office_rooms_view(request):
-    rooms = Room.objects.all().order_by("id")
     return render(request, "reservations/office_rooms.html")
 
 def office_room_detail_view(request, room_id: int):
