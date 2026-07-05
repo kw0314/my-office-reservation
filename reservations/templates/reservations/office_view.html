@@ -71,6 +71,7 @@
       border-collapse: collapse;
       width: 100%;
       min-width: 1100px;
+      table-layout: fixed;
       user-select: none;
     }
 
@@ -80,6 +81,8 @@
       padding: 6px;
       font-size: 13px;
       /* default cell font */
+      vertical-align: top;
+      line-height: 1.2;
     }
 
     /* Room column specifically larger */
@@ -104,9 +107,17 @@
 
 
     .cell {
-      height: 34px;
-      min-width: 60px;
+      height: auto;
+      min-height: 34px;
+      width: 84px;
+      min-width: 84px;
+      max-width: 84px;
       cursor: pointer;
+      white-space: normal;
+      overflow-wrap: anywhere;
+      word-break: break-word;
+      line-height: 1.25;
+      text-align: left;
     }
 
     .busy {
