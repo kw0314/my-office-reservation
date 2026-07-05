@@ -24,6 +24,37 @@ def _our_dow(d: date) -> int:
     return (d.weekday() + 1) % 7
 
 
+def _coerce_date(value) -> date | None:
+    if value is None:
+        return None
+    if isinstance(value, datetime):
+        return value.date()
+    if isinstance(value, date):
+        return value
+    if isinstance(value, str):
+        text = value.strip()
+        if not text:
+            return None
+        try:
+            return datetime.strptime(text, "%Y-%m-%d").date()
+        except ValueError as exc:
+            raise ValidationError("Invalid date format.") from exc
+    raise ValidationError("Invalid date value.")
+
+
+def _apply_series_repeat_until(items, *, repeat_until) -> list:
+    normalized = _coerce_date(repeat_until)
+    if normalized is None:
+        return list(items)
+
+    for item in items:
+        item.series_repeat_until = normalized
+        item_local_date = timezone.localtime(item.start_at, TZ).date()
+        if item_local_date > normalized and item.status in [Reservation.STATUS_CONFIRMED, Reservation.STATUS_PENDING]:
+            item.status = Reservation.STATUS_CANCELLED
+    return list(items)
+
+
 def _intervals_overlap(a_start, a_end, b_start, b_end) -> bool:
     return a_start < b_end and a_end > b_start
 
@@ -277,6 +308,7 @@ def create_reservation(*, room: Room, start_at, end_at, title: str, note_interna
                 color=color,
                 created_by_device=device,
                 series_id=series_id,
+                series_repeat_until=repeat_until,
                 email=email.strip() if email else None,
             )
         )
@@ -359,7 +391,7 @@ def update_reservation_series(*, reservation_id, series_id: str, room: Room | No
                               start_at=None, end_at=None,
                               title: str | None, note_internal: str | None, color: str | None = None,
                               new_cancel_pin: str | None, device: AccessDevice | None, ip: str | None,
-                              email: str | None = None):
+                              email: str | None = None, series_repeat_until=None):
     """
     Update all reservations in a series (title, note, cancel pin, and optionally time).
     
@@ -432,6 +464,9 @@ def update_reservation_series(*, reservation_id, series_id: str, room: Room | No
                 if _intervals_overlap(s_new, e_new, rs, re):
                     raise ValidationError("Time overlaps with an existing reservation for series update.")
 
+    if series_repeat_until is not None:
+        _apply_series_repeat_until(items, repeat_until=series_repeat_until)
+
     # Apply updates to each instance
     updated = []
     new_duration = end_at - start_at if (end_at is not None and start_at is not None) else None
@@ -449,6 +484,9 @@ def update_reservation_series(*, reservation_id, series_id: str, room: Room | No
             r.email = email.strip() if email else None
         if new_cancel_pin:
             r.set_cancel_pin(new_cancel_pin)
+
+        if series_repeat_until is not None:
+            r.series_repeat_until = _coerce_date(series_repeat_until)
 
         is_approval_required = room_to_use.requires_approval or "[승인필요]" in room_to_use.name
         if is_approval_required and r.status == Reservation.STATUS_CONFIRMED:
@@ -489,7 +527,7 @@ def update_reservation_series(*, reservation_id, series_id: str, room: Room | No
 
 @transaction.atomic
 def cancel_reservation(*, reservation_id, cancel_pin: str, device: AccessDevice | None, ip: str | None,
-                       scope: str = "single"):
+                       scope: str = "single", series_repeat_until=None):
     r = Reservation.objects.select_for_update().get(id=reservation_id)
 
     if r.status not in [Reservation.STATUS_CONFIRMED, Reservation.STATUS_PENDING]:
@@ -517,6 +555,9 @@ def cancel_reservation(*, reservation_id, cancel_pin: str, device: AccessDevice 
             )
         )
 
+    if series_repeat_until is not None and scope == "series" and r.series_id:
+        _apply_series_repeat_until(targets, repeat_until=series_repeat_until)
+
     cancelled_targets = []
     for t in targets:
         if t.status not in [Reservation.STATUS_CONFIRMED, Reservation.STATUS_PENDING]:
@@ -524,7 +565,9 @@ def cancel_reservation(*, reservation_id, cancel_pin: str, device: AccessDevice 
         t.status = Reservation.STATUS_CANCELLED
         t.cancel_fail_count = 0
         t.cancel_locked_until = None
-        t.save(update_fields=["status", "cancel_fail_count", "cancel_locked_until", "updated_at"])
+        if scope == "series" and r.series_id and series_repeat_until is not None:
+            t.series_repeat_until = _coerce_date(series_repeat_until)
+        t.save(update_fields=["status", "cancel_fail_count", "cancel_locked_until", "updated_at", "series_repeat_until"])
         cancelled_targets.append(t)
         
     # Send cancellation email to requester

@@ -158,7 +158,9 @@ def office_grid_api(request: HttpRequest) -> JsonResponse:
     reservations = []
     for r in res_qs:
         series_end_at = None
-        if r.series_id and r.series_id in series_max_ends:
+        if r.series_repeat_until:
+            series_end_at = r.series_repeat_until.isoformat()
+        elif r.series_id and r.series_id in series_max_ends:
             series_end_at = timezone.localtime(series_max_ends[r.series_id], TZ).date().isoformat()
             
         reservations.append({
@@ -320,6 +322,13 @@ def office_update_reservation(request: HttpRequest, rid) -> JsonResponse:
 
         # scope handling: if series, apply series-wide update (title/note/new_pin)
         scope = str(data.get("scope") or "single").lower()
+        series_repeat_until_raw = data.get("series_repeat_until") or data.get("repeat_until")
+        series_repeat_until = None
+        if series_repeat_until_raw:
+            try:
+                series_repeat_until = datetime.strptime(series_repeat_until_raw, "%Y-%m-%d").date()
+            except ValueError:
+                raise ValidationError("Invalid series_repeat_until date.")
         if scope == "series":
             series_id = data.get("series_id") or (str(target.series_id) if target.series_id else None)
             if not series_id:
@@ -338,6 +347,7 @@ def office_update_reservation(request: HttpRequest, rid) -> JsonResponse:
                 device=None,
                 ip=request.META.get("REMOTE_ADDR"),
                 email=email,
+                series_repeat_until=series_repeat_until,
             )
             print(f"Series update applied: {len(updated_items)} instances (series_id={series_id})")
             updated_list = []
@@ -382,11 +392,20 @@ def office_cancel_reservation(request: HttpRequest, rid) -> JsonResponse:
     try:
         pin = data.get("cancel_pin", "")
         scope = data.get("scope", "single")
+        series_repeat_until_raw = data.get("series_repeat_until") or data.get("repeat_until")
+        series_repeat_until = None
+        if series_repeat_until_raw:
+            try:
+                series_repeat_until = datetime.strptime(series_repeat_until_raw, "%Y-%m-%d").date()
+            except ValueError:
+                raise ValidationError("Invalid series_repeat_until date.")
+
         services.cancel_reservation(
             reservation_id=rid,
             cancel_pin=pin,
             scope=("series" if str(scope).lower() == "series" else "single"),
             device=None, ip=request.META.get("REMOTE_ADDR"),
+            series_repeat_until=series_repeat_until,
         )
         return JsonResponse({"ok": True})
     except Reservation.DoesNotExist:
