@@ -1175,6 +1175,14 @@
         "수정/취소 PIN(4자리)은 필수입니다.";
     }
 
+    function syncSeriesScopeUi() {
+      const scope = document.querySelector('input[name="cancel-scope"]:checked')?.value || "single";
+      const seriesEndRow = document.getElementById("series-end-row");
+      if (seriesEndRow) {
+        seriesEndRow.style.display = scope === "series" ? "" : "none";
+      }
+    }
+
     function openRoomDetail(room) {
       const modal = document.getElementById("room-detail-modal");
       if (!modal) return;
