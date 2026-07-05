@@ -110,6 +110,7 @@ class Reservation(models.Model):
     # Recurrence grouping (nullable for one-off reservations)
     # If set, all reservations with the same series_id are treated as one repeating series.
     series_id = models.UUIDField(null=True, blank=True, db_index=True)
+    series_repeat_until = models.DateField(null=True, blank=True, verbose_name="반복 종료일")
 
     # Cancel brute-force protection
     cancel_fail_count = models.PositiveIntegerField(default=0)

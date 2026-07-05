@@ -928,6 +928,10 @@
             <input type="radio" name="cancel-scope" value="series">전체(반복 예약)
           </label>
         </div>
+        <div id="series-end-row" style="display:none;margin-top:4px;">
+          <label style="display:block;font-size:12px;color:#555;margin-bottom:4px;">반복 종료일(새 값)</label>
+          <input id="series-end-date" type="date" style="padding:6px 8px;border:1px solid #ddd;border-radius:6px;min-width:160px;" />
+        </div>
         <div id="series-end-info" style="display:none;font-size:12px;color:#1f7a3a;background:#e8f5e9;padding:4px 8px;border-radius:4px;width:fit-content;margin-top:2px;"></div>
       </div>
     </div>
@@ -1148,6 +1152,7 @@
       document.getElementById("repeat-row").style.display = "";
       document.getElementById("cancel-scope-row").style.display = "none";
       document.getElementById("new-pin-row").style.display = "none";
+      document.getElementById("series-end-row").style.display = "none";
       document.getElementById("btn-cancel").style.display = "none";
       document.getElementById("btn-save").textContent = "생성";
       document.getElementById("modal-title").textContent = "예약 생성";
@@ -1160,6 +1165,7 @@
       document.getElementById("cancel-scope-row").style.display = "";
       document.getElementById("pin-row").style.display = "";
       document.getElementById("new-pin-row").style.display = "";
+      document.getElementById("series-end-row").style.display = "none";
       document.getElementById("btn-cancel").style.display = "";
       document.getElementById("btn-save").textContent = "수정 저장";
       document.getElementById("modal-title").textContent = "예약 수정/취소";
@@ -1328,13 +1334,20 @@
       // cancel scope UI
       const scopeRow = document.getElementById("cancel-scope-row");
       const endInfo = document.getElementById("series-end-info");
+      const seriesEndRow = document.getElementById("series-end-row");
+      const seriesEndDate = document.getElementById("series-end-date");
       if (scopeRow) scopeRow.style.display = "";
+      document.querySelectorAll('input[name="cancel-scope"]').forEach(el => {
+        el.onchange = syncSeriesScopeUi;
+      });
       
       // if server provides series/group id, enable series option; otherwise still show but warn via hint
       const seriesRadio = scopeRow ? scopeRow.querySelector('input[value="series"]') : null;
       if (seriesRadio) seriesRadio.disabled = !(r.series_id || r.group_id || r.repeat_id);
       const singleRadio = scopeRow ? scopeRow.querySelector('input[value="single"]') : null;
       if (singleRadio) singleRadio.checked = true;
+      if (seriesEndRow) seriesEndRow.style.display = "none";
+      if (seriesEndDate) seriesEndDate.value = r.series_end_at || "";
       
       if (endInfo) {
         if (r.series_id && r.series_end_at) {
@@ -2291,6 +2304,7 @@
           }
 
           const scope = (document.querySelector('input[name="cancel-scope"]:checked')?.value || "single");
+          const seriesEndDateValue = (scope === "series") ? String(document.getElementById("series-end-date")?.value || "").trim() : "";
           const editPayload = {
             room_id: roomId,
             start_at: startAt,
@@ -2303,6 +2317,7 @@
             email: email
           };
           if (newPin) editPayload["new_cancel_pin"] = newPin;
+          if (scope === "series" && seriesEndDateValue) editPayload["series_repeat_until"] = seriesEndDateValue;
 
           const r = state.currentEdit || state.resById[resId];
           if (r && r.series_id) editPayload["series_id"] = r.series_id;
@@ -2368,10 +2383,12 @@
       const scopeLabel = (scope === "series") ? "전체 반복 예약" : "현재 예약";
       if (!confirm(`정말 취소할까요?\n(범위: ${scopeLabel})`)) return;
 
+      const seriesEndDateValue = (scope === "series") ? String(document.getElementById("series-end-date")?.value || "").trim() : "";
       const payload = { cancel_pin: pin, scope };
 
       // If backend supports grouping, pass any group id we have (optional)
       const r = state.currentEdit || state.resById[resId];
+      if (scope === "series" && seriesEndDateValue) payload["series_repeat_until"] = seriesEndDateValue;
       if (scope === "series" && r) {
         if (r.series_id) payload["series_id"] = r.series_id;
         if (r.group_id) payload["group_id"] = r.group_id;
