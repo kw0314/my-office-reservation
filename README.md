@@ -95,6 +95,29 @@ python manage.py migrate
 python manage.py createsuperuser
 ```
 
+### 데이터베이스 접속 방법
+프로젝트는 PostgreSQL을 사용하므로, 아래 두 가지 방법으로 데이터베이스에 접속할 수 있습니다.
+
+#### 1) PostgreSQL CLI로 접속
+```bash
+psql -U catechism_user -d catechism_db -h 127.0.0.1
+```
+비밀번호를 입력하면 `psql` 셸에 들어갑니다.
+
+유용한 명령어:
+```sql
+\dt                -- 테이블 목록 확인
+\d reservations_room -- 특정 테이블 구조 확인
+SELECT * FROM reservations_room;  -- 데이터 조회
+\q                 -- 종료
+```
+
+#### 2) Django 관리 명령으로 접속
+Django 설정이 정상이라면 프로젝트 루트에서 아래 명령으로도 접속할 수 있습니다.
+```bash
+python manage.py dbshell
+```
+
 ---
 
 ## 실행 방법
@@ -116,6 +139,92 @@ python manage.py runserver 0.0.0.0:8000
 > [!NOTE]
 > * **방화벽 설정**: 외부 접속이 되지 않는 경우, 실행 중인 PC의 방화벽(Windows 방화벽 등)에서 `8000` 포트가 열려 있는지 확인하세요.
 > * **허용 호스트 설정 (`.env`)**: 외부 접속 시 Django가 요청을 거부하는 경우 `.env` 파일의 `ALLOWED_HOSTS` 값을 `*`로 설정하거나 실제 외부 IP 또는 도메인을 추가해 주어야 합니다. (현재 기본값은 `*`로 지정되어 있어 접속이 허용됩니다.)
+
+---
+
+## 부팅 시 자동 실행 설정 (Linux)
+리눅스 서버가 부팅될 때 Django 앱이 자동으로 실행되도록 하려면 `systemd` 서비스를 등록하면 됩니다.
+
+### 1. 서비스 파일 생성
+```bash
+sudo nano /etc/systemd/system/my-office-reservation.service
+```
+
+아래 내용을 넣습니다.
+```ini
+[Unit]
+Description=My Office Reservation Django App
+After=network.target
+
+[Service]
+User=kwlee
+WorkingDirectory=/srv/my-office-reservation
+Environment=PATH=/srv/my-office-reservation/.venv/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
+ExecStart=/srv/my-office-reservation/.venv/bin/python /srv/my-office-reservation/manage.py runserver 0.0.0.0:8000
+Restart=always
+
+[Install]
+WantedBy=multi-user.target
+```
+
+> `User=kwlee`는 실제 로그인 사용자명으로 바꿔주세요. 프로젝트 경로도 실제 위치에 맞게 수정하세요.
+
+### 2. 서비스 등록
+```bash
+sudo systemctl daemon-reload
+sudo systemctl enable my-office-reservation.service
+sudo systemctl start my-office-reservation.service
+```
+
+### 3. 상태 확인
+```bash
+sudo systemctl status my-office-reservation.service
+```
+
+### 4. 재시작/중지
+```bash
+sudo systemctl restart my-office-reservation.service
+sudo systemctl stop my-office-reservation.service
+```
+
+> `runserver`는 개발/테스트 용도입니다. 실제 운영 환경에서는 보통 `gunicorn` + `nginx` 조합을 권장합니다.
+
+---
+
+## 가상환경 초기화 방법
+가상환경이 꼬였거나 패키지 설치 상태를 깨끗하게 다시 시작하고 싶다면 아래 순서로 초기화하면 됩니다.
+
+### 1. 기존 가상환경 삭제
+* **Linux / macOS**:
+  ```bash
+  rm -rf .venv
+  ```
+* **Windows (PowerShell)**:
+  ```powershell
+  Remove-Item -Recurse -Force .venv
+  ```
+
+### 2. 새 가상환경 생성
+* **Linux / macOS**:
+  ```bash
+  python3 -m venv .venv
+  source .venv/bin/activate
+  ```
+* **Windows (PowerShell)**:
+  ```powershell
+  python -m venv .venv
+  .venv\Scripts\Activate.ps1
+  ```
+
+### 3. 의존성 재설치
+```bash
+pip install -r requirements.txt
+```
+
+### 4. 필요 시 pip 캐시 정리
+```bash
+pip cache purge
+```
 
 ---
 

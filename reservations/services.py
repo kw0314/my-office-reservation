@@ -288,8 +288,7 @@ def create_reservation(*, room: Room, start_at, end_at, title: str, note_interna
 
     # Send email notifications for confirmed reservations in the series
     if initial_status == Reservation.STATUS_CONFIRMED:
-        for item in created:
-            send_reservation_status_email(item, 'confirmed')
+        send_reservation_status_email(created, 'confirmed')
 
     AuditLog.objects.create(
         actor_type=AuditLog.ACTOR_DEVICE if device else AuditLog.ACTOR_ADMIN,
@@ -518,6 +517,7 @@ def cancel_reservation(*, reservation_id, cancel_pin: str, device: AccessDevice 
             )
         )
 
+    cancelled_targets = []
     for t in targets:
         if t.status not in [Reservation.STATUS_CONFIRMED, Reservation.STATUS_PENDING]:
             continue
@@ -525,8 +525,11 @@ def cancel_reservation(*, reservation_id, cancel_pin: str, device: AccessDevice 
         t.cancel_fail_count = 0
         t.cancel_locked_until = None
         t.save(update_fields=["status", "cancel_fail_count", "cancel_locked_until", "updated_at"])
-        # Send cancellation email to requester
-        send_reservation_status_email(t, 'cancelled')
+        cancelled_targets.append(t)
+        
+    # Send cancellation email to requester
+    if cancelled_targets:
+        send_reservation_status_email(cancelled_targets, 'cancelled')
 
     AuditLog.objects.create(
         actor_type=AuditLog.ACTOR_DEVICE if device else AuditLog.ACTOR_ADMIN,
