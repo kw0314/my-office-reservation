@@ -1079,6 +1079,15 @@
       const v = String(el.value || "").trim();
       if (!/^\d{4}-\d{2}-\d{2}$/.test(v)) el.value = getSelectedDate();
     }
+
+    function syncSelectedDateToUrl() {
+      const d = getSelectedDate();
+      if (!/^\d{4}-\d{2}-\d{2}$/.test(d)) return;
+      const url = new URL(window.location.href);
+      if (url.searchParams.get("date") === d) return;
+      url.searchParams.set("date", d);
+      history.replaceState(null, "", url.toString());
+    }
     const modal = document.getElementById("modal");
     const banner = document.getElementById("time-banner");
 
@@ -1637,6 +1646,7 @@
           if (dateInput) {
             dateInput.value = dateStr;
           }
+          syncSelectedDateToUrl();
           renderSelectedDateBadge();
           updateCollapsedView();
           buildTime30Datalist();
@@ -1665,7 +1675,9 @@
     async function load() {
       hideCreateBar();
       clearSelection();
-      const res = await fetch(`/api/office/grid?date=${encodeURIComponent(getSelectedDate())}`);
+      const selectedDate = getSelectedDate();
+      syncSelectedDateToUrl();
+      const res = await fetch(`/api/office/grid?date=${encodeURIComponent(selectedDate)}`);
       if (!res.ok) {
         const t = await res.text();
         throw new Error(`Grid API failed: HTTP ${res.status} ${t.slice(0, 200)}`);
@@ -2598,6 +2610,7 @@
     async function goToday() {
       const el = document.getElementById("date") || document.querySelector('input[type="date"][name="date"]');
       if (el) el.value = todayStr();
+      syncSelectedDateToUrl();
 
       // Update calendar view to today
       calendarViewDate = new Date();
@@ -2628,6 +2641,7 @@
       const da = String(d.getDate()).padStart(2, "0");
       const newDateStr = `${y}-${m}-${da}`;
       el.value = newDateStr;
+      syncSelectedDateToUrl();
 
       // Update calendar view to match new date
       calendarViewDate = new Date(d);
@@ -2794,6 +2808,7 @@
           buildTime30Datalist();
           // Update calendar view to show the selected date's month
           const selectedDate = getSelectedDate();
+          syncSelectedDateToUrl();
           const [year, month, day] = selectedDate.split("-");
           calendarViewDate = new Date(parseInt(year), parseInt(month) - 1, parseInt(day));
           renderCalendar();
