@@ -1,4 +1,5 @@
 from django.core.mail import send_mail
+from django.conf import settings
 from zoneinfo import ZoneInfo
 from django.utils import timezone
 import logging
@@ -16,6 +17,10 @@ def send_reservation_status_email(reservations, event_type):
     reservations: a single Reservation instance or a list/QuerySet of Reservation instances
     event_type: 'confirmed' | 'modified' | 'cancelled'
     """
+    if not getattr(settings, "RESERVATION_EMAILS_ENABLED", False):
+        logger.info("Reservation email disabled; skipped event '%s'.", event_type)
+        return
+
     if not isinstance(reservations, (list, tuple)) and not hasattr(reservations, 'exists'):
         reservations = [reservations]
         

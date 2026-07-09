@@ -997,8 +997,12 @@
       <input id="title" type="text" placeholder="예: 유스그룹" />
     </div>
     <div class="row">
-      <label>신청자 이메일 <span style="color: red;">*</span></label>
-      <input id="email" type="email" placeholder="예: user@example.com (알림 수신용)" required style="flex:1; padding:8px 10px; border:1px solid #ddd; border-radius:8px; font-size:14px;" />
+      <label>신청자 이메일</label>
+      <input id="email" type="email" placeholder="선택 입력" style="flex:1; padding:8px 10px; border:1px solid #ddd; border-radius:8px; font-size:14px;" />
+    </div>
+    <div class="row">
+      <label>신청자 전화번호 <span style="color: red;">*</span></label>
+      <input id="phone" type="tel" placeholder="예: 214-555-1234" required style="flex:1; padding:8px 10px; border:1px solid #ddd; border-radius:8px; font-size:14px;" />
     </div>
 
     <div class="row">
@@ -1168,6 +1172,16 @@
     function roomRequiresApproval(roomId) {
       const room = state.data?.rooms?.find(r => String(r.id) === String(roomId));
       return !!room?.requires_approval;
+    }
+
+    async function fetchWithTimeout(url, options, timeoutMs = 20000) {
+      const controller = new AbortController();
+      const timer = setTimeout(() => controller.abort(), timeoutMs);
+      try {
+        return await fetch(url, { ...(options || {}), signal: controller.signal });
+      } finally {
+        clearTimeout(timer);
+      }
     }
 
     function closeModal() { modal.close(); }
@@ -1355,6 +1369,7 @@
 
         document.getElementById("title").value = "";
         document.getElementById("email").value = "";
+        document.getElementById("phone").value = "";
         document.getElementById("note").value = "";
         document.getElementById("pin").value = "";
         document.getElementById("new-pin").value = "";
@@ -1426,6 +1441,7 @@
 
       document.getElementById("title").value = r.title || "";
       document.getElementById("email").value = r.email || "";
+      document.getElementById("phone").value = r.phone || "";
       document.getElementById("note").value = r.note_internal || "";
       document.getElementById("pin").value = "";
       document.getElementById("new-pin").value = "";
@@ -2300,6 +2316,7 @@
 
         const title = document.getElementById("title").value;
         const email = document.getElementById("email").value;
+        const phone = document.getElementById("phone").value;
         const note = document.getElementById("note").value;
         let color = document.getElementById("selected-color").value;
         const pin = document.getElementById("pin").value;
@@ -2309,14 +2326,14 @@
           return;
         }
 
-        if (!email.trim()) {
-          alert("신청자 이메일을 입력해 주세요.");
+        // Simple email validation, only when provided.
+        if (email.trim() && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim())) {
+          alert("올바른 이메일 형식을 입력해 주세요.");
           return;
         }
 
-        // Simple email validation
-        if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim())) {
-          alert("올바른 이메일 형식을 입력해 주세요.");
+        if (!phone.trim()) {
+          alert("신청자 전화번호를 입력해 주세요.");
           return;
         }
 
@@ -2344,7 +2361,8 @@
             note_internal: note,
             color,
             cancel_pin: pin,
-            email: email
+            email: email,
+            phone: phone
           };
 
           if (repeatEnabled) {
@@ -2389,7 +2407,7 @@
           setSaveButtonState(true, "예약 생성 중...");
           setModalHint(roomRequiresApproval(roomId) ? "예약 승인 요청을 보내는 중입니다..." : "예약을 저장하는 중입니다...", "#1f2937");
 
-          const resp = await fetch("/api/office/reservations", {
+          const resp = await fetchWithTimeout("/api/office/reservations", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify(createPayload)
@@ -2437,7 +2455,8 @@
             color,
             cancel_pin: pin,
             scope: scope,
-            email: email
+            email: email,
+            phone: phone
           };
           if (newPin) editPayload["new_cancel_pin"] = newPin;
           if (scope === "series" && seriesEndDateValue) editPayload["series_repeat_until"] = seriesEndDateValue;
@@ -2449,7 +2468,7 @@
           setSaveButtonState(true, "수정 저장 중...");
           setModalHint(roomRequiresApproval(roomId) ? "변경 승인 요청을 보내는 중입니다..." : "변경 사항을 저장하는 중입니다...", "#1f2937");
 
-          const resp = await fetch(`/api/office/reservations/${encodeURIComponent(resId)}`, {
+          const resp = await fetchWithTimeout(`/api/office/reservations/${encodeURIComponent(resId)}`, {
             method: "PATCH",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify(editPayload)
@@ -2482,6 +2501,7 @@
                   existing.end_at = u.end_at;
                   existing.title = u.title;
                   existing.note_internal = u.note_internal || existing.note_internal;
+                  existing.phone = u.phone || existing.phone;
                   existing.color = u.color || existing.color;
                   state.resById[id] = existing;
                   const idx = state.data.reservations.findIndex(rr => String(rr.id) === id);
@@ -2501,8 +2521,12 @@
         console.error("[saveReservation] unexpected error:", err);
         state.savingReservation = false;
         setSaveButtonState(false);
-        setModalHint("저장 중 오류가 발생했습니다. 내용을 확인한 뒤 다시 시도해 주세요.", "#b00020");
-        alert("저장 중 예상치 못한 오류가 발생했습니다: " + err.message);
+        const timedOut = err && err.name === "AbortError";
+        const msg = timedOut
+          ? "서버 응답이 지연되고 있습니다. 저장이 처리됐을 수도 있으니 새로고침 후 확인해 주세요."
+          : "저장 중 오류가 발생했습니다. 내용을 확인한 뒤 다시 시도해 주세요.";
+        setModalHint(msg, "#b00020");
+        alert(timedOut ? msg : "저장 중 예상치 못한 오류가 발생했습니다: " + err.message);
       }
     }
 
