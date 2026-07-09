@@ -169,7 +169,7 @@ def _generate_repeat_dates(
 def create_reservation(*, room: Room, start_at, end_at, title: str, note_internal: str,
                        cancel_pin: str, color: str = "#e3f2fd",
                        device: AccessDevice | None, ip: str | None,
-                       email: str | None = None,
+                       email: str | None = None, phone: str = "",
                        repeat_days: list[int] | None = None,
                        repeat_until: date | None = None,
                        repeat_interval: int = 1,
@@ -184,6 +184,9 @@ def create_reservation(*, room: Room, start_at, end_at, title: str, note_interna
     """
     title_s = title.strip()
     note_s = note_internal.strip()
+    phone_s = phone.strip()
+    if not phone_s:
+        raise ValidationError("신청자 전화번호를 입력해 주세요.")
     duration = end_at - start_at
 
     is_approval_required = room.requires_approval or "[승인필요]" in room.name
@@ -200,6 +203,7 @@ def create_reservation(*, room: Room, start_at, end_at, title: str, note_interna
             status=initial_status,
             created_by_device=device,
             email=email.strip() if email else None,
+            phone=phone_s,
         )
         r.set_cancel_pin(cancel_pin)
         r.full_clean()
@@ -310,6 +314,7 @@ def create_reservation(*, room: Room, start_at, end_at, title: str, note_interna
                 series_id=series_id,
                 series_repeat_until=repeat_until,
                 email=email.strip() if email else None,
+                phone=phone_s,
             )
         )
 
@@ -348,7 +353,8 @@ def create_reservation(*, room: Room, start_at, end_at, title: str, note_interna
 @transaction.atomic
 def update_reservation(*, reservation_id, room: Room, start_at, end_at, title: str,
                        note_internal: str, color: str = None, new_cancel_pin: str | None,
-                       device: AccessDevice | None, ip: str | None, email: str | None = None):
+                       device: AccessDevice | None, ip: str | None, email: str | None = None,
+                       phone: str | None = None):
     r = Reservation.objects.select_for_update().get(id=reservation_id)
 
     if r.status not in [Reservation.STATUS_CONFIRMED, Reservation.STATUS_PENDING]:
@@ -359,10 +365,14 @@ def update_reservation(*, reservation_id, room: Room, start_at, end_at, title: s
     r.end_at = end_at
     r.title = title.strip()
     r.note_internal = note_internal.strip()
+    if phone is not None and not phone.strip():
+        raise ValidationError("신청자 전화번호를 입력해 주세요.")
     if color:
         r.color = color
     if email is not None:
         r.email = email.strip() if email else None
+    if phone is not None:
+        r.phone = phone.strip()
 
     is_approval_required = room.requires_approval or "[승인필요]" in room.name
     if is_approval_required and r.status == Reservation.STATUS_CONFIRMED:
@@ -391,7 +401,7 @@ def update_reservation_series(*, reservation_id, series_id: str, room: Room | No
                               start_at=None, end_at=None,
                               title: str | None, note_internal: str | None, color: str | None = None,
                               new_cancel_pin: str | None, device: AccessDevice | None, ip: str | None,
-                              email: str | None = None, series_repeat_until=None):
+                              email: str | None = None, phone: str | None = None, series_repeat_until=None):
     """
     Update all reservations in a series (title, note, cancel pin, and optionally time).
     
@@ -478,10 +488,14 @@ def update_reservation_series(*, reservation_id, series_id: str, room: Room | No
             r.title = title.strip()
         if note_internal is not None:
             r.note_internal = note_internal.strip()
+        if phone is not None and not phone.strip():
+            raise ValidationError("신청자 전화번호를 입력해 주세요.")
         if color is not None:
             r.color = color
         if email is not None:
             r.email = email.strip() if email else None
+        if phone is not None:
+            r.phone = phone.strip()
         if new_cancel_pin:
             r.set_cancel_pin(new_cancel_pin)
 
