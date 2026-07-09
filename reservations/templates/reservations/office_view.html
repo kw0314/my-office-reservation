@@ -1079,6 +1079,7 @@
 
       // create selection (open modal via Reserve button)
       pendingCreate: null, // {roomId, startLabel, endLabel}
+      autoColorManuallySelected: false,
     };
 
 
@@ -1087,6 +1088,41 @@
 
     function parseISO(s) { return new Date(s); }
     function hhmm(d) { return String(d.getHours()).padStart(2, "0") + ":" + String(d.getMinutes()).padStart(2, "0"); }
+
+    const reservationColorPalette = [
+      "#e3f2fd",
+      "#e8f5e9",
+      "#fff9c4",
+      "#ffecb3",
+      "#fce4ec",
+      "#f3e5f5",
+      "#e0f2f1",
+      "#f5f5f5",
+    ];
+
+    function colorFromGroupName(groupName) {
+      const key = String(groupName || "").trim().toLocaleLowerCase();
+      if (!key) return reservationColorPalette[0];
+
+      let hash = 2166136261;
+      for (let i = 0; i < key.length; i++) {
+        hash ^= key.charCodeAt(i);
+        hash = Math.imul(hash, 16777619);
+      }
+      return reservationColorPalette[Math.abs(hash) % reservationColorPalette.length];
+    }
+
+    function setSelectedColor(color) {
+      document.querySelectorAll('.color-option').forEach(el => el.classList.remove('selected'));
+      const opt = document.querySelector(`.color-option[data-color="${color}"]`) || document.querySelector('.color-option');
+      if (opt) opt.classList.add('selected');
+      const colorInput = document.getElementById('selected-color');
+      if (colorInput) colorInput.value = color;
+    }
+
+    function applyAutoColorFromTitle(titleValue) {
+      setSelectedColor(colorFromGroupName(titleValue));
+    }
 
     function closeModal() { modal.close(); }
     function clearSelection() { document.querySelectorAll(".selected").forEach(el => el.classList.remove("selected")); }
@@ -1278,11 +1314,8 @@
         document.getElementById("pin").value = "";
         document.getElementById("new-pin").value = "";
 
-        // Reset color to default
-        document.querySelectorAll('.color-option').forEach(el => el.classList.remove('selected'));
-        const defaultColor = "#e3f2fd";
-        document.querySelector(`.color-option[data-color="${defaultColor}"]`)?.classList.add('selected');
-        document.getElementById('selected-color').value = defaultColor;
+        state.autoColorManuallySelected = false;
+        applyAutoColorFromTitle("");
 
         // repeat defaults
         const repType = document.getElementById("repeat-type");
@@ -1351,14 +1384,11 @@
       document.getElementById("note").value = r.note_internal || "";
       document.getElementById("pin").value = "";
       document.getElementById("new-pin").value = "";
+      state.autoColorManuallySelected = true;
 
       // set color
-      document.querySelectorAll('.color-option').forEach(el => el.classList.remove('selected'));
       const rColor = r.color || "#e3f2fd";
-      let opt = document.querySelector(`.color-option[data-color="${rColor}"]`);
-      if (!opt) opt = document.querySelector('.color-option'); // fallback to first
-      if (opt) opt.classList.add('selected');
-      document.getElementById('selected-color').value = rColor;
+      setSelectedColor(rColor);
 
       // cancel scope UI
       const scopeRow = document.getElementById("cancel-scope-row");
@@ -2225,7 +2255,7 @@
         const title = document.getElementById("title").value;
         const email = document.getElementById("email").value;
         const note = document.getElementById("note").value;
-        const color = document.getElementById("selected-color").value;
+        let color = document.getElementById("selected-color").value;
         const pin = document.getElementById("pin").value;
 
         if (!title.trim()) {
@@ -2246,6 +2276,11 @@
 
         if (!resId) {
           // CREATE
+          if (!state.autoColorManuallySelected) {
+            applyAutoColorFromTitle(title);
+            color = document.getElementById("selected-color").value;
+          }
+
           if (!/^\d{4}$/.test(pin)) {
             alert("수정/취소 PIN(비번)은 숫자 4자리입니다.");
             return;
@@ -2643,9 +2678,15 @@
 
       document.getElementById('color-picker')?.addEventListener('click', (e) => {
         if (e.target.classList.contains('color-option')) {
-          document.querySelectorAll('.color-option').forEach(el => el.classList.remove('selected'));
-          e.target.classList.add('selected');
-          document.getElementById('selected-color').value = e.target.dataset.color;
+          state.autoColorManuallySelected = true;
+          setSelectedColor(e.target.dataset.color);
+        }
+      });
+
+      document.getElementById('title')?.addEventListener('input', (e) => {
+        const resId = document.getElementById("res-id")?.value || "";
+        if (!resId && !state.autoColorManuallySelected) {
+          applyAutoColorFromTitle(e.target.value);
         }
       });
 
