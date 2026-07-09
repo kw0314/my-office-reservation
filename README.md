@@ -38,8 +38,22 @@ pip install -r requirements.txt
 ### 4. 데이터베이스(PostgreSQL) 생성
 이 프로젝트는 PostgreSQL 데이터베이스를 사용합니다. 데이터베이스와 사용자를 생성해야 합니다.
 
-1. PostgreSQL 클라이언트(`psql`) 또는 pgAdmin 등을 사용하여 데이터베이스 서버에 접속합니다.
-2. 아래 SQL 명령어를 실행하여 데이터베이스와 사용자를 생성하고 권한을 부여합니다.
+1. PostgreSQL 서버가 실행 중인지 먼저 확인합니다.
+   - Windows: 서비스 목록에서 PostgreSQL 서비스가 실행 중인지 확인합니다.
+   - Linux/macOS: `sudo systemctl status postgresql` 또는 `brew services list` 등의 명령으로 상태를 확인합니다.
+2. 접속 방법은 두 가지가 있습니다.
+   - `psql` CLI 사용: 터미널에서 아래와 같이 접속합니다.
+     ```bash
+     psql -U postgres
+     ```
+     접속 후 비밀번호를 입력하고, 데이터베이스를 생성합니다.
+   - pgAdmin 사용: pgAdmin을 실행한 뒤, "Servers" → "Add New Server"로 PostgreSQL 서버를 등록합니다.
+     - Host name/address: `127.0.0.1`
+     - Port: `5432`
+     - Maintenance database: `postgres`
+     - Username: `postgres`
+     - Password: 설치 시 설정한 비밀번호
+3. 아래 SQL 명령어를 실행하여 데이터베이스와 사용자를 생성하고 권한을 부여합니다.
    ```sql
    -- 1. 데이터베이스 생성
    CREATE DATABASE catechism_db;
@@ -103,6 +117,106 @@ python manage.py createsuperuser
 psql -U catechism_user -d catechism_db -h 127.0.0.1
 ```
 비밀번호를 입력하면 `psql` 셸에 들어갑니다.
+
+#### 데이터베이스 백업/복원
+아래 명령어로 데이터베이스를 백업하고 복원할 수 있습니다.
+
+##### PostgreSQL 백업/복원
+```bash
+# 백업
+pg_dump -U catechism_user -h 127.0.0.1 -d catechism_db -Fc -f catechism_db.backup
+
+# 복원
+pg_restore -U catechism_user -h 127.0.0.1 -d catechism_db catechism_db.backup
+```
+
+##### PostgreSQL 데이터를 다른 PC로 옮기기
+PostgreSQL은 `db.sqlite3`처럼 프로젝트 폴더 안의 파일 하나를 복사하는 방식이 아닙니다. 원본 PC에서 `pg_dump`로 백업 파일을 만들고, 대상 PC의 PostgreSQL에 `pg_restore`로 복원해야 합니다.
+
+1. 원본 PC에서 백업합니다.
+   ```bash
+   pg_dump -U catechism_user -h 127.0.0.1 -d catechism_db -Fc -f catechism_db.backup
+   ```
+2. `catechism_db.backup` 파일을 USB, 공유 폴더, SCP 등으로 대상 PC에 복사합니다.
+3. 대상 PC에서 Django/Gunicorn 등 DB에 접속 중인 서버를 멈춥니다.
+   ```bash
+   sudo systemctl stop catechism
+   # 서비스 이름이 다르면 catechism 대신 실제 서비스 이름을 사용합니다.
+   ```
+4. 대상 DB를 삭제하고 빈 DB를 다시 만듭니다. 이 단계는 기존 데이터를 지우므로, 필요하면 먼저 대상 PC의 DB를 별도로 백업하세요.
+   ```bash
+   dropdb -U catechism_user -h 127.0.0.1 catechism_db
+   sudo -u postgres createdb -O catechism_user catechism_db
+   ```
+   `catechism_user`에게 DB 생성 권한이 없으면 `createdb -U catechism_user ...` 명령은 `permission denied to create database`로 실패합니다. 그 경우 위처럼 `sudo -u postgres createdb -O catechism_user catechism_db`를 사용합니다.
+5. 복원합니다.
+   ```bash
+   pg_restore -U catechism_user -h 127.0.0.1 -d catechism_db catechism_db.backup
+   ```
+6. 복원 후 데이터 개수를 확인합니다.
+   ```bash
+   python manage.py shell -c "from reservations.models import Room, Reservation; print(Room.objects.count(), Reservation.objects.count())"
+   ```
+7. 서버를 다시 시작합니다.
+   ```bash
+   sudo systemctl start catechism
+   ```
+
+##### `pg_restore` 중복 키 오류 해결
+복원 중 아래와 같은 오류가 나오면, 빈 DB가 아닌 곳에 백업을 다시 복원한 것입니다.
+
+```text
+ERROR: duplicate key value violates unique constraint
+Key (content_type_id, codename)=(1, add_logentry) already exists.
+Key (id)=(1) already exists.
+Key (name)=(C102) already exists.
+```
+
+이 경우 일부 테이블만 복원되고 일부는 실패할 수 있으므로, 대상 DB를 완전히 비운 뒤 다시 복원하는 것이 가장 안전합니다.
+
+```bash
+# DB를 사용 중인 웹 서버가 있다면 먼저 중지
+sudo systemctl stop catechism
+
+# DB 삭제
+dropdb -U catechism_user -h 127.0.0.1 catechism_db
+
+# catechism_user가 DB 생성 권한이 없을 때는 postgres 계정으로 생성
+sudo -u postgres createdb -O catechism_user catechism_db
+
+# 복원
+pg_restore -U catechism_user -h 127.0.0.1 -d catechism_db catechism_db.backup
+```
+
+`dropdb`가 `database "catechism_db" is being accessed by other users`로 실패하면 아직 DB에 접속 중인 세션이 있는 것입니다. 웹 서버를 멈추거나, 필요하면 PostgreSQL 관리자로 접속해 세션을 끊을 수 있습니다.
+
+```bash
+sudo -u postgres psql
+```
+
+```sql
+SELECT pg_terminate_backend(pid)
+FROM pg_stat_activity
+WHERE datname = 'catechism_db'
+  AND pid <> pg_backend_pid();
+
+\q
+```
+
+그 뒤 `dropdb`, `createdb`, `pg_restore`를 다시 실행합니다.
+
+##### SQLite 백업/복원 (로컬 개발 환경 기준)
+```bash
+# 백업
+copy db.sqlite3 db.sqlite3.bak
+# 또는 Linux/macOS: cp db.sqlite3 db.sqlite3.bak
+
+# 복원
+copy db.sqlite3.bak db.sqlite3
+# 또는 Linux/macOS: cp db.sqlite3.bak db.sqlite3
+```
+
+> 복원 전에는 Django 서버를 중지한 상태로 진행하는 것이 안전합니다.
 
 유용한 명령어:
 ```sql
@@ -264,5 +378,4 @@ python manage.py flush
    ```bash
    python manage.py createsuperuser
    ```
-
 
