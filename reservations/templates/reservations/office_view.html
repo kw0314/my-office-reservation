@@ -295,6 +295,27 @@
       border-color: #777;
     }
 
+    button.is-loading {
+      opacity: 0.78;
+      cursor: wait;
+    }
+
+    .btn-spinner {
+      display: inline-block;
+      width: 12px;
+      height: 12px;
+      margin-right: 6px;
+      border: 2px solid currentColor;
+      border-right-color: transparent;
+      border-radius: 50%;
+      vertical-align: -2px;
+      animation: spin .75s linear infinite;
+    }
+
+    @keyframes spin {
+      to { transform: rotate(360deg); }
+    }
+
     .hint {
       font-size: 12px;
       color: #666;
@@ -1080,6 +1101,7 @@
       // create selection (open modal via Reserve button)
       pendingCreate: null, // {roomId, startLabel, endLabel}
       autoColorManuallySelected: false,
+      savingReservation: false,
     };
 
 
@@ -1122,6 +1144,30 @@
 
     function applyAutoColorFromTitle(titleValue) {
       setSelectedColor(colorFromGroupName(titleValue));
+    }
+
+    function setModalHint(message, color) {
+      const hint = document.getElementById("modal-hint");
+      if (!hint) return;
+      hint.textContent = message || "";
+      hint.style.color = color || "#666";
+    }
+
+    function setSaveButtonState(isSaving, text) {
+      const btn = document.getElementById("btn-save");
+      if (!btn) return;
+      btn.disabled = isSaving;
+      btn.classList.toggle("is-loading", isSaving);
+      if (isSaving) {
+        btn.innerHTML = `<span class="btn-spinner" aria-hidden="true"></span>${text || "처리 중..."}`;
+      } else {
+        btn.textContent = text || (document.getElementById("res-id")?.value ? "수정 저장" : "생성");
+      }
+    }
+
+    function roomRequiresApproval(roomId) {
+      const room = state.data?.rooms?.find(r => String(r.id) === String(roomId));
+      return !!room?.requires_approval;
     }
 
     function closeModal() { modal.close(); }
@@ -1211,9 +1257,10 @@
       document.getElementById("new-pin-row").style.display = "none";
       document.getElementById("series-end-row").style.display = "none";
       document.getElementById("btn-cancel").style.display = "none";
-      document.getElementById("btn-save").textContent = "생성";
+      state.savingReservation = false;
+      setSaveButtonState(false, "생성");
       document.getElementById("modal-title").textContent = "예약 생성";
-      document.getElementById("modal-hint").textContent = "수정/취소 PIN(4자리)은 생성 시 필수입니다.";
+      setModalHint("수정/취소 PIN(4자리)은 생성 시 필수입니다.");
     }
 
     function setModalModeEdit() {
@@ -1224,12 +1271,10 @@
       document.getElementById("new-pin-row").style.display = "";
       document.getElementById("series-end-row").style.display = "none";
       document.getElementById("btn-cancel").style.display = "";
-      document.getElementById("btn-save").textContent = "수정 저장";
+      state.savingReservation = false;
+      setSaveButtonState(false, "수정 저장");
       document.getElementById("modal-title").textContent = "예약 수정/취소";
-      document.getElementById("modal-hint").textContent =
-        "수정/취소 PIN(4자리)은 필수입니다.";
-      document.getElementById("modal-hint").textContent =
-        "수정/취소 PIN(4자리)은 필수입니다.";
+      setModalHint("수정/취소 PIN(4자리)은 필수입니다.");
     }
 
     function syncSeriesScopeUi() {
@@ -2233,6 +2278,7 @@
 
 
     async function saveReservation() {
+      if (state.savingReservation) return;
       try {
         const resId = document.getElementById("res-id").value;
         const roomIdRaw = document.getElementById("room-id").value;
@@ -2339,6 +2385,10 @@
             }
           }
 
+          state.savingReservation = true;
+          setSaveButtonState(true, "예약 생성 중...");
+          setModalHint(roomRequiresApproval(roomId) ? "예약 승인 요청을 보내는 중입니다..." : "예약을 저장하는 중입니다...", "#1f2937");
+
           const resp = await fetch("/api/office/reservations", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
@@ -2352,10 +2402,15 @@
 
           if (!resp.ok || !out || out.ok === false) {
             const msg = (out && out.error) ? out.error : "저장 실패";
+            state.savingReservation = false;
+            setSaveButtonState(false, "생성");
+            setModalHint(msg, "#b00020");
             alert(`${msg}\nHTTP ${resp.status}`);
             return;
           }
 
+          setSaveButtonState(false, roomRequiresApproval(roomId) ? "승인 대기 중" : "저장 완료");
+          setModalHint(roomRequiresApproval(roomId) ? "예약 승인 대기 중입니다. 화면에 [대기중]으로 표시됩니다." : "예약이 저장되었습니다. 화면을 새로고침합니다.", "#1f7a3a");
           closeModal(); await load(); clearSelection(); return;
 
         } else {
@@ -2390,6 +2445,10 @@
           const r = state.currentEdit || state.resById[resId];
           if (r && r.series_id) editPayload["series_id"] = r.series_id;
 
+          state.savingReservation = true;
+          setSaveButtonState(true, "수정 저장 중...");
+          setModalHint(roomRequiresApproval(roomId) ? "변경 승인 요청을 보내는 중입니다..." : "변경 사항을 저장하는 중입니다...", "#1f2937");
+
           const resp = await fetch(`/api/office/reservations/${encodeURIComponent(resId)}`, {
             method: "PATCH",
             headers: { "Content-Type": "application/json" },
@@ -2402,7 +2461,11 @@
           catch (e) { out = { ok: false, error: "Invalid JSON" }; }
 
           if (!resp.ok || !out || out.ok === false) {
-            alert("수정 실패: " + (out ? out.error : "Unknown error"));
+            const msg = "수정 실패: " + (out ? out.error : "Unknown error");
+            state.savingReservation = false;
+            setSaveButtonState(false, "수정 저장");
+            setModalHint(msg, "#b00020");
+            alert(msg);
             return;
           }
 
@@ -2429,11 +2492,16 @@
             }
           } catch (e) { console.warn("series client-side apply failed:", e); }
 
+          setSaveButtonState(false, roomRequiresApproval(roomId) ? "변경 승인 대기 중" : "저장 완료");
+          setModalHint(roomRequiresApproval(roomId) ? "변경 승인 대기 중입니다. 화면에 [대기중]으로 표시됩니다." : "변경 사항이 저장되었습니다. 화면을 새로고침합니다.", "#1f7a3a");
           closeModal(); await load(); clearSelection(); return;
         }
 
       } catch (err) {
         console.error("[saveReservation] unexpected error:", err);
+        state.savingReservation = false;
+        setSaveButtonState(false);
+        setModalHint("저장 중 오류가 발생했습니다. 내용을 확인한 뒤 다시 시도해 주세요.", "#b00020");
         alert("저장 중 예상치 못한 오류가 발생했습니다: " + err.message);
       }
     }
