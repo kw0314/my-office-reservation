@@ -113,11 +113,25 @@
       min-width: 84px;
       max-width: 84px;
       cursor: pointer;
+      position: relative;
       white-space: normal;
+      overflow: visible;
       overflow-wrap: anywhere;
       word-break: break-word;
       line-height: 1.25;
       text-align: left;
+    }
+
+    .range-label {
+      position: absolute;
+      inset: 6px auto 6px 6px;
+      width: calc((var(--range-slots, 1) * 100%) - 12px);
+      z-index: 1;
+      pointer-events: none;
+      font-weight: 600;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
     }
 
     .busy {
@@ -1756,7 +1770,13 @@
             if (i === si) cells[i].dataset.edgeStart = "1";
             if (i === endIdx - 1) cells[i].dataset.edgeEnd = "1";
           }
-          if (i === si && finalText) cells[i].textContent = finalText;
+          if (i === si && finalText) {
+            const label = document.createElement("span");
+            label.className = "range-label";
+            label.style.setProperty("--range-slots", String(Math.max(1, endIdx - si)));
+            label.textContent = finalText;
+            cells[i].appendChild(label);
+          }
         }
       }
 
