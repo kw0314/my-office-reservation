@@ -124,14 +124,43 @@
 
     .range-label {
       position: absolute;
-      inset: 6px auto 6px 6px;
-      width: calc((var(--range-slots, 1) * 100%) - 12px);
+      inset: 7px auto 7px 10px;
+      width: calc((var(--range-slots, 1) * 100%) - 20px);
       z-index: 1;
       pointer-events: none;
       font-weight: 600;
       overflow: hidden;
       text-overflow: ellipsis;
       white-space: nowrap;
+    }
+
+    .cell.range-body {
+      --range-border: rgba(31, 41, 55, 0.28);
+      box-shadow:
+        inset 0 2px 0 var(--range-border),
+        inset 0 -2px 0 var(--range-border);
+    }
+
+    .cell.range-start {
+      box-shadow:
+        inset 3px 0 0 var(--range-border),
+        inset 0 2px 0 var(--range-border),
+        inset 0 -2px 0 var(--range-border);
+    }
+
+    .cell.range-end {
+      box-shadow:
+        inset -3px 0 0 var(--range-border),
+        inset 0 2px 0 var(--range-border),
+        inset 0 -2px 0 var(--range-border);
+    }
+
+    .cell.range-start.range-end {
+      box-shadow:
+        inset 3px 0 0 var(--range-border),
+        inset -3px 0 0 var(--range-border),
+        inset 0 2px 0 var(--range-border),
+        inset 0 -2px 0 var(--range-border);
     }
 
     .busy {
@@ -1761,6 +1790,9 @@
 
         for (let i = si; i < endIdx; i++) {
           cells[i].classList.add(...finalCls.split(" "));
+          cells[i].classList.add("range-body");
+          if (i === si) cells[i].classList.add("range-start");
+          if (i === endIdx - 1) cells[i].classList.add("range-end");
           if (resId && item.color) {
             cells[i].style.backgroundColor = item.color;
             cells[i].style.borderColor = 'rgba(0,0,0,0.1)';
