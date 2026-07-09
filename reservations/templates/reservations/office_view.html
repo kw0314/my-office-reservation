@@ -1463,10 +1463,14 @@
       
       // if server provides series/group id, enable series option; otherwise still show but warn via hint
       const seriesRadio = scopeRow ? scopeRow.querySelector('input[value="series"]') : null;
-      if (seriesRadio) seriesRadio.disabled = !(r.series_id || r.group_id || r.repeat_id);
+      const hasSeries = !!(r.series_id || r.group_id || r.repeat_id);
+      if (seriesRadio) seriesRadio.disabled = !hasSeries;
       const singleRadio = scopeRow ? scopeRow.querySelector('input[value="single"]') : null;
-      if (singleRadio) singleRadio.checked = true;
-      if (seriesEndRow) seriesEndRow.style.display = "none";
+      if (hasSeries && seriesRadio) {
+        seriesRadio.checked = true;
+      } else if (singleRadio) {
+        singleRadio.checked = true;
+      }
       if (seriesEndDate) seriesEndDate.value = r.series_end_at || "";
       
       if (endInfo) {
@@ -1480,6 +1484,7 @@
       }
 
       setModalModeEdit();
+      syncSeriesScopeUi();
       updateEndPreview_();
       rebuildEndPickerFromStart_();
       modal.showModal();
