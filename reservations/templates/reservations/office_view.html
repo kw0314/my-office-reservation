@@ -142,10 +142,10 @@
     }
 
     .busy {
-      background: #f3f3ff;
+      background: transparent;
     }
 
-    .pending {
+    .range-label.pending {
       background-image: repeating-linear-gradient(
         45deg,
         rgba(255, 255, 255, 0.5),
@@ -157,7 +157,7 @@
     }
 
     .blocked {
-      background: #fff3f3;
+      background: transparent;
     }
 
     .selected {
@@ -1768,10 +1768,6 @@
 
         for (let i = si; i < endIdx; i++) {
           cells[i].classList.add(...finalCls.split(" "));
-          if (resId && item.color) {
-            cells[i].style.backgroundColor = item.color;
-            cells[i].style.borderColor = 'rgba(0,0,0,0.1)';
-          }
           if (resId) {
             cells[i].dataset.resId = resId;
             if (i === si) cells[i].dataset.edgeStart = "1";
@@ -1780,6 +1776,7 @@
           if (i === si && finalText) {
             const label = document.createElement("span");
             label.className = "range-label";
+            if (finalCls.includes("pending")) label.classList.add("pending");
             label.style.setProperty("--range-slots", String(Math.max(1, endIdx - si)));
             label.style.setProperty("--range-bg", item.color || (finalCls.includes("blocked") ? "#fff3f3" : "#e3f2fd"));
             label.textContent = finalText;
