@@ -12,7 +12,18 @@
     th, td { border:1px solid #e5e5e5; padding: 6px; font-size: 12px; }
     th { position: sticky; top: 0; background: #fafafa; z-index: 2; }
     td.room { position: sticky; left: 0; background: #fff; z-index: 1; min-width: 140px; }
-    .cell { height: 34px; min-width: 60px; }
+    .cell { height: 34px; min-width: 60px; position: relative; overflow: visible; }
+    .range-label {
+      position: absolute;
+      inset: 6px auto 6px 6px;
+      width: calc((var(--range-slots, 1) * 100%) - 12px);
+      z-index: 1;
+      pointer-events: none;
+      font-weight: 600;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
     .busy { background: #f3f3ff; }
     .blocked { background: #fff3f3; }
     .label { font-weight: 600; }
@@ -126,7 +137,13 @@
 
           for (let i=si; i<endIdx; i++){
             cells[i].classList.add(cls);
-            if (i === si && text) cells[i].textContent = text;
+            if (i === si && text) {
+              const label = document.createElement("span");
+              label.className = "range-label";
+              label.style.setProperty("--range-slots", String(Math.max(1, endIdx - si)));
+              label.textContent = text;
+              cells[i].appendChild(label);
+            }
           }
         }
 
@@ -145,4 +162,3 @@
   </script>
 </body>
 </html>
-
