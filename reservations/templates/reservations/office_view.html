@@ -1098,6 +1098,10 @@
       return (document.documentElement.lang || "").slice(0, 2) === "en";
     }
 
+    function translateUiElement(el) {
+      if (typeof window.translateUi === "function" && el) window.translateUi(el);
+    }
+
     const modal = document.getElementById("modal");
     const banner = document.getElementById("time-banner");
 
@@ -1172,7 +1176,7 @@
     function setModalHint(message, color) {
       const hint = document.getElementById("modal-hint");
       if (!hint) return;
-      hint.textContent = message || "";
+      hint.textContent = trUi(message || "");
       hint.style.color = color || "#666";
     }
 
@@ -1182,9 +1186,9 @@
       btn.disabled = isSaving;
       btn.classList.toggle("is-loading", isSaving);
       if (isSaving) {
-        btn.innerHTML = `<span class="btn-spinner" aria-hidden="true"></span>${text || "처리 중..."}`;
+        btn.innerHTML = `<span class="btn-spinner" aria-hidden="true"></span>${trUi(text || "처리 중...")}`;
       } else {
-        btn.textContent = text || (document.getElementById("res-id")?.value ? "수정 저장" : "생성");
+        btn.textContent = trUi(text || (document.getElementById("res-id")?.value ? "수정 저장" : "생성"));
       }
     }
 
@@ -1292,8 +1296,9 @@
       document.getElementById("btn-cancel").style.display = "none";
       state.savingReservation = false;
       setSaveButtonState(false, "생성");
-      document.getElementById("modal-title").textContent = "예약 생성";
+      document.getElementById("modal-title").textContent = trUi("예약 생성");
       setModalHint("수정/취소 PIN(4자리)은 생성 시 필수입니다.");
+      translateUiElement(modal);
     }
 
     function setModalModeEdit() {
@@ -1306,8 +1311,9 @@
       document.getElementById("btn-cancel").style.display = "";
       state.savingReservation = false;
       setSaveButtonState(false, "수정 저장");
-      document.getElementById("modal-title").textContent = "예약 수정/취소";
+      document.getElementById("modal-title").textContent = trUi("예약 수정/취소");
       setModalHint("수정/취소 PIN(4자리)은 필수입니다.");
+      translateUiElement(modal);
     }
 
     function syncSeriesScopeUi() {
@@ -1355,6 +1361,7 @@
       }
 
       modal.showModal();
+      translateUiElement(modal);
     }
 
     function closeRoomDetail() {
@@ -1422,6 +1429,7 @@
         rebuildEndPickerFromStart_();
         console.log("[openCreate] modal.showModal() called");
         modal.showModal();
+        translateUiElement(modal);
       } catch (err) {
         console.error("[openCreate] error:", err);
         alert("모달 열기 중 오류: " + err.message);
@@ -1507,6 +1515,7 @@
       updateEndPreview_();
       rebuildEndPickerFromStart_();
       modal.showModal();
+      translateUiElement(modal);
     }
 
     function setTimeChangeUI(on) {
@@ -1565,6 +1574,7 @@
 
       setModalModeEdit();
       modal.showModal();
+      translateUiElement(modal);
     }
 
     function getRoomById(roomId) {
@@ -2266,7 +2276,7 @@
       if (!opt) {
         opt = document.createElement("option");
         opt.value = v;
-        opt.textContent = `${v}분`;
+        opt.textContent = trUi(`${v}분`);
         sel.appendChild(opt);
       }
       sel.value = v;
