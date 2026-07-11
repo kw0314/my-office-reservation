@@ -267,13 +267,6 @@
 
       document.addEventListener("DOMContentLoaded", function () {
         translateNode(document.body);
-        const observer = new MutationObserver(function (mutations) {
-          mutations.forEach(function (mutation) {
-            mutation.addedNodes.forEach(translateNode);
-            if (mutation.type === "characterData") translateNode(mutation.target);
-          });
-        });
-        observer.observe(document.body, { childList: true, subtree: true, characterData: true });
       });
     }
   })();
