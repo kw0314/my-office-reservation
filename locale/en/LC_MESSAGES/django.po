@@ -250,6 +250,9 @@ msgstr "Reject/cancel the full series. This cannot be undone. Continue?"
 msgid "전체 거절/취소"
 msgstr "Reject/Cancel All"
 
+msgid "거절/취소"
+msgstr "Reject/Cancel"
+
 msgid "선택한 항목을 승인하시겠습니까?"
 msgstr "Approve the selected items?"
 
