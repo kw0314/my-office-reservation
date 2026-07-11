@@ -11,7 +11,6 @@
   .series-meta .tag { padding: 4px 14px; border-radius: 20px; font-size: 13px; font-weight: 600; }
   .tag-room { background: #e0f2fe; color: #0369a1; }
   .tag-id { background: #f1f5f9; color: #64748b; font-family: monospace; font-size: 12px; }
-
   .stats-row { display: flex; gap: 16px; margin-bottom: 24px; flex-wrap: wrap; }
   .stat-card { padding: 16px 24px; border-radius: 12px; min-width: 120px; text-align: center; }
   .stat-card .num { font-size: 28px; font-weight: 700; }
@@ -20,42 +19,30 @@
   .stat-pending { background: #fef3c7; color: #92400e; }
   .stat-confirmed { background: #dcfce7; color: #166534; }
   .stat-cancelled { background: #fee2e2; color: #991b1b; }
-
   .action-bar { display: flex; gap: 10px; margin-bottom: 24px; flex-wrap: wrap; }
-  .action-bar a { display: inline-flex; align-items: center; gap: 6px; padding: 10px 22px; border-radius: 8px;
-    font-size: 14px; font-weight: 600; text-decoration: none; transition: opacity 0.15s; cursor: pointer; }
+  .action-bar a { display: inline-flex; align-items: center; gap: 6px; padding: 10px 22px; border-radius: 8px; font-size: 14px; font-weight: 600; text-decoration: none; transition: opacity 0.15s; cursor: pointer; }
   .action-bar a:hover { opacity: 0.85; }
   .btn-approve { background: #16a34a; color: #fff; }
   .btn-reject { background: #dc2626; color: #fff; }
   .btn-back { background: #e2e8f0; color: #475569; }
-  .action-bar button {
-    display: inline-flex; align-items: center; gap: 6px; padding: 10px 22px; border-radius: 8px;
-    font-size: 14px; font-weight: 600; border: none; cursor: pointer; transition: opacity 0.15s;
-    font-family: inherit;
-  }
+  .action-bar button { display: inline-flex; align-items: center; gap: 6px; padding: 10px 22px; border-radius: 8px; font-size: 14px; font-weight: 600; border: none; cursor: pointer; transition: opacity 0.15s; font-family: inherit; }
   .action-bar button:hover { opacity: 0.85; }
-
-  .series-table { width: 100%; border-collapse: separate; border-spacing: 0; border-radius: 12px;
-    overflow: hidden; border: 1px solid #e2e8f0; }
-  .series-table th { background: #f8fafc; color: #64748b; font-size: 12px; font-weight: 600;
-    text-transform: uppercase; letter-spacing: 0.5px; padding: 12px 16px; text-align: left;
-    border-bottom: 2px solid #e2e8f0; }
+  .series-table { width: 100%; border-collapse: separate; border-spacing: 0; border-radius: 12px; overflow: hidden; border: 1px solid #e2e8f0; }
+  .series-table th { background: #f8fafc; color: #64748b; font-size: 12px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; padding: 12px 16px; text-align: left; border-bottom: 2px solid #e2e8f0; }
   .series-table td { padding: 10px 16px; border-bottom: 1px solid #f1f5f9; font-size: 14px; color: #334155; }
   .series-table tr:last-child td { border-bottom: none; }
   .series-table tr:hover td { background: #f8fafc; }
-
   .badge { padding: 3px 10px; border-radius: 12px; font-size: 12px; font-weight: 600; white-space: nowrap; }
   .badge-confirmed { background: #dcfce7; color: #16a34a; }
   .badge-pending { background: #fef3c7; color: #d97706; }
   .badge-cancelled { background: #fee2e2; color: #dc2626; }
-
   .row-num { color: #94a3b8; font-size: 12px; font-weight: 600; }
 </style>
 
 <div class="series-header">
-  <h2>🔁 {{ series_title }}</h2>
+  <h2>{{ series_title }}</h2>
   <div class="series-meta">
-    <span class="tag tag-room">📍 {{ room_name }}</span>
+    <span class="tag tag-room">{{ room_name }}</span>
     <span class="tag tag-id">ID: {{ series_id|truncatechars:12 }}</span>
   </div>
 </div>
@@ -63,19 +50,19 @@
 <div class="stats-row">
   <div class="stat-card stat-total">
     <div class="num">{{ total_count }}</div>
-    <div class="label">전체</div>
+    <div class="label">{% trans "전체" %}</div>
   </div>
   <div class="stat-card stat-pending">
     <div class="num">{{ pending_count }}</div>
-    <div class="label">대기</div>
+    <div class="label">{% trans "대기" %}</div>
   </div>
   <div class="stat-card stat-confirmed">
     <div class="num">{{ confirmed_count }}</div>
-    <div class="label">확정</div>
+    <div class="label">{% trans "확정" %}</div>
   </div>
   <div class="stat-card stat-cancelled">
     <div class="num">{{ cancelled_count }}</div>
-    <div class="label">취소</div>
+    <div class="label">{% trans "취소" %}</div>
   </div>
 </div>
 
@@ -84,29 +71,29 @@
   <div class="action-bar">
     {% if pending_count > 0 %}
     <a href="{{ approve_url }}" class="btn-approve"
-       onclick="return confirm('시리즈 전체 대기 중인 {{ pending_count }}건을 승인합니다. 계속하시겠습니까?')">
-      ✅ 전체 승인 ({{ pending_count }}건)
+       onclick="return confirm('{% blocktrans with count=pending_count %}시리즈 전체 대기 중인 {{ count }}건을 승인합니다. 계속하시겠습니까?{% endblocktrans %}')">
+      {% blocktrans with count=pending_count %}전체 승인 ({{ count }}건){% endblocktrans %}
     </a>
     {% endif %}
     {% if pending_count > 0 or confirmed_count > 0 %}
     <a href="{{ reject_url }}" class="btn-reject"
-       onclick="return confirm('시리즈 전체를 거절/취소합니다. 이 작업은 되돌릴 수 없습니다. 계속하시겠습니까?')">
-      ❌ 전체 거절/취소
+       onclick="return confirm('{% trans "시리즈 전체를 거절/취소합니다. 이 작업은 되돌릴 수 없습니다. 계속하시겠습니까?" %}')">
+      {% trans "전체 거절/취소" %}
     </a>
     {% endif %}
-    
+
     <span style="border-left: 1px solid #cbd5e1; margin: 0 4px;"></span>
-    
+
     <button type="submit" name="action" value="approve_selected" class="btn-approve"
-            onclick="return confirm('선택한 항목을 승인하시겠습니까?')">
-      ✅ 선택 승인
+            onclick="return confirm('{% trans "선택한 항목을 승인하시겠습니까?" %}')">
+      {% trans "선택 승인" %}
     </button>
     <button type="submit" name="action" value="reject_selected" class="btn-reject"
-            onclick="return confirm('선택한 항목을 거절/취소하시겠습니까?')">
-      ❌ 선택 거절/취소
+            onclick="return confirm('{% trans "선택한 항목을 거절/취소하시겠습니까?" %}')">
+      {% trans "선택 거절/취소" %}
     </button>
 
-    <a href="{{ changelist_url }}" class="btn-back">← 목록으로</a>
+    <a href="{{ changelist_url }}" class="btn-back">{% trans "목록으로" %}</a>
   </div>
 
   <table class="series-table">
@@ -114,39 +101,39 @@
       <tr>
         <th style="width: 30px; text-align: center;"><input type="checkbox" id="select-all"></th>
         <th>#</th>
-      <th>날짜</th>
-      <th>시간</th>
-      <th>상태</th>
-      <th>관리</th>
-    </tr>
-  </thead>
-  <tbody>
-    {% for item in items %}
-    <tr>
-      <td style="text-align: center;"><input type="checkbox" name="selected_items" value="{{ item.pk }}" class="item-checkbox"></td>
-      <td class="row-num">{{ forloop.counter }}</td>
-      <td style="font-weight:600">{{ item.start_local|slice:":10" }}</td>
-      <td>{{ item.start_local|slice:"11:" }} ~ {{ item.end_local }}</td>
-      <td>
-        {% if item.status == "confirmed" %}
-          <span class="badge badge-confirmed">확정</span>
-        {% elif item.status == "pending" %}
-          <span class="badge badge-pending">대기</span>
-        {% else %}
-          <span class="badge badge-cancelled">취소</span>
-        {% endif %}
-      </td>
-      <td>
-        <a href="{% url 'admin:reservations_reservation_change' item.pk %}"
-           style="display:inline-block; background:#e2e8f0; color:#475569; padding:4px 10px; border-radius:6px; text-decoration:none; font-size:12px; font-weight:600; transition: background 0.2s;"
-           onmouseover="this.style.background='#cbd5e1'" onmouseout="this.style.background='#e2e8f0'">
-          수정/취소
-        </a>
-      </td>
-    </tr>
-    {% endfor %}
-  </tbody>
-</table>
+        <th>{% trans "날짜" %}</th>
+        <th>{% trans "시간" %}</th>
+        <th>{% trans "상태" %}</th>
+        <th>{% trans "관리" %}</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for item in items %}
+      <tr>
+        <td style="text-align: center;"><input type="checkbox" name="selected_items" value="{{ item.pk }}" class="item-checkbox"></td>
+        <td class="row-num">{{ forloop.counter }}</td>
+        <td style="font-weight:600">{{ item.start_local|slice:":10" }}</td>
+        <td>{{ item.start_local|slice:"11:" }} ~ {{ item.end_local }}</td>
+        <td>
+          {% if item.status == "confirmed" %}
+            <span class="badge badge-confirmed">{% trans "확정" %}</span>
+          {% elif item.status == "pending" %}
+            <span class="badge badge-pending">{% trans "대기" %}</span>
+          {% else %}
+            <span class="badge badge-cancelled">{% trans "취소" %}</span>
+          {% endif %}
+        </td>
+        <td>
+          <a href="{% url 'admin:reservations_reservation_change' item.pk %}"
+             style="display:inline-block; background:#e2e8f0; color:#475569; padding:4px 10px; border-radius:6px; text-decoration:none; font-size:12px; font-weight:600; transition: background 0.2s;"
+             onmouseover="this.style.background='#cbd5e1'" onmouseout="this.style.background='#e2e8f0'">
+            {% trans "수정/취소" %}
+          </a>
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
 </form>
 
 <script>

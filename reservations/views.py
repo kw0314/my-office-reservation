@@ -10,6 +10,7 @@ from django.core.exceptions import ValidationError
 from django.http import JsonResponse, HttpRequest, HttpResponse
 from django.shortcuts import render, get_object_or_404
 from django.utils import timezone
+from django.utils.translation import gettext as _
 from django.db.models import Max
 
 from .models import Room, Reservation, Block
@@ -261,7 +262,7 @@ def office_create_reservation(request: HttpRequest) -> JsonResponse:
             try:
                 repeat_until = datetime.strptime(repeat_until_raw, "%Y-%m-%d").date()
             except ValueError:
-                raise ValidationError("Invalid repeat_until date.")
+                raise ValidationError(_("Invalid repeat_until date."))
 
         created = services.create_reservation(
             room=room, start_at=start_at, end_at=end_at,
@@ -286,7 +287,7 @@ def office_create_reservation(request: HttpRequest) -> JsonResponse:
         else:
             return JsonResponse({"ok": True, "id": str(created.id)})
     except (KeyError, Room.DoesNotExist):
-        return JsonResponse({"ok": False, "error": "Invalid room_id or payload."}, status=400)
+        return JsonResponse({"ok": False, "error": _("Invalid room_id or payload.")}, status=400)
     except ValidationError as e:
         return JsonResponse({"ok": False, "error": "; ".join(e.messages)}, status=400)
 
@@ -313,14 +314,14 @@ def office_update_reservation(request: HttpRequest, rid) -> JsonResponse:
         target = Reservation.objects.get(id=rid)
         now = timezone.now()
         if target.cancel_locked_until and now < target.cancel_locked_until:
-            raise ValidationError("Cancel PIN locked. Try again later.")
+            raise ValidationError(_("Cancel PIN locked. Try again later."))
         if not target.check_cancel_pin(cancel_pin):
             target.cancel_fail_count += 1
             if target.cancel_fail_count >= 3:
                 target.cancel_locked_until = now + timedelta(minutes=5)
                 target.cancel_fail_count = 0
             target.save(update_fields=["cancel_fail_count", "cancel_locked_until", "updated_at"])
-            raise ValidationError("Invalid cancel PIN.")
+            raise ValidationError(_("Invalid cancel PIN."))
 
         # scope handling: if series, apply series-wide update (title/note/new_pin)
         scope = str(data.get("scope") or "single").lower()
@@ -330,11 +331,11 @@ def office_update_reservation(request: HttpRequest, rid) -> JsonResponse:
             try:
                 series_repeat_until = datetime.strptime(series_repeat_until_raw, "%Y-%m-%d").date()
             except ValueError:
-                raise ValidationError("Invalid series_repeat_until date.")
+                raise ValidationError(_("Invalid series_repeat_until date."))
         if scope == "series":
             series_id = data.get("series_id") or (str(target.series_id) if target.series_id else None)
             if not series_id:
-                raise ValidationError("No series_id available for series update.")
+                raise ValidationError(_("No series_id available for series update."))
             # Pass room and the new start/end to allow shifting the whole series
             updated_items = services.update_reservation_series(
                 reservation_id=rid,
@@ -381,9 +382,9 @@ def office_update_reservation(request: HttpRequest, rid) -> JsonResponse:
         send_reservation_status_email(updated_reservation, 'modified')
         return JsonResponse({"ok": True})
     except (KeyError, Room.DoesNotExist):
-        return JsonResponse({"ok": False, "error": "Invalid room_id or payload."}, status=400)
+        return JsonResponse({"ok": False, "error": _("Invalid room_id or payload.")}, status=400)
     except Reservation.DoesNotExist:
-        return JsonResponse({"ok": False, "error": "Reservation not found."}, status=404)
+        return JsonResponse({"ok": False, "error": _("Reservation not found.")}, status=404)
     except ValidationError as e:
         return JsonResponse({"ok": False, "error": "; ".join(e.messages)}, status=400)
 
@@ -401,7 +402,7 @@ def office_cancel_reservation(request: HttpRequest, rid) -> JsonResponse:
             try:
                 series_repeat_until = datetime.strptime(series_repeat_until_raw, "%Y-%m-%d").date()
             except ValueError:
-                raise ValidationError("Invalid series_repeat_until date.")
+                raise ValidationError(_("Invalid series_repeat_until date."))
 
         services.cancel_reservation(
             reservation_id=rid,
@@ -412,7 +413,7 @@ def office_cancel_reservation(request: HttpRequest, rid) -> JsonResponse:
         )
         return JsonResponse({"ok": True})
     except Reservation.DoesNotExist:
-        return JsonResponse({"ok": False, "error": "Reservation not found."}, status=404)
+        return JsonResponse({"ok": False, "error": _("Reservation not found.")}, status=404)
     except ValidationError as e:
         return JsonResponse({"ok": False, "error": "; ".join(e.messages)}, status=400)
 
