@@ -1089,6 +1089,15 @@
       url.searchParams.set("date", d);
       history.replaceState(null, "", url.toString());
     }
+
+    function trUi(text) {
+      return (window.tText || ((value) => value))(text);
+    }
+
+    function isEnglishUi() {
+      return (document.documentElement.lang || "").slice(0, 2) === "en";
+    }
+
     const modal = document.getElementById("modal");
     const banner = document.getElementById("time-banner");
 
@@ -1220,7 +1229,7 @@
         state.pendingCreate = { roomId, startLabel, endLabel };
         const bar = document.getElementById('create-bar');
         const t = document.getElementById('create-bar-text');
-        if (t) t.textContent = `선택: ${startLabel}–${endLabel}`;
+        if (t) t.textContent = trUi(`선택: ${startLabel}–${endLabel}`);
         if (bar) {
           bar.hidden = false;
           console.log("[showCreateBar] visible with:", startLabel, endLabel);
@@ -1596,8 +1605,12 @@
       const month = calendarViewDate.getMonth();
 
       // Update header
-      const monthNames = ["1월", "2월", "3월", "4월", "5월", "6월", "7월", "8월", "9월", "10월", "11월", "12월"];
-      document.getElementById("cal-month").textContent = `${year}년 ${monthNames[month]}`;
+      const monthNames = isEnglishUi()
+        ? ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"]
+        : ["1월", "2월", "3월", "4월", "5월", "6월", "7월", "8월", "9월", "10월", "11월", "12월"];
+      document.getElementById("cal-month").textContent = isEnglishUi()
+        ? `${monthNames[month]} ${year}`
+        : `${year}년 ${monthNames[month]}`;
 
       // Get selected date - already in YYYY-MM-DD format
       const selDate = getSelectedDate();
@@ -1833,7 +1846,7 @@
 
       const trh = document.createElement("tr");
       const th0 = document.createElement("th");
-      th0.textContent = "교리실";
+      th0.textContent = trUi("교리실");
       trh.appendChild(th0);
 
       state.data.slots.forEach(t => {
@@ -2589,7 +2602,9 @@
     function formatSelectedDateKo(dStr) {
       if (!/^\d{4}-\d{2}-\d{2}$/.test(String(dStr || "").trim())) return String(dStr || "");
       const dt = new Date(dStr + "T00:00:00");
-      const w = ["일", "월", "화", "수", "목", "금", "토"][dt.getDay()];
+      const w = isEnglishUi()
+        ? ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"][dt.getDay()]
+        : ["일", "월", "화", "수", "목", "금", "토"][dt.getDay()];
       return `${dStr} (${w})`;
     }
 
@@ -2597,7 +2612,7 @@
       const el = document.getElementById("selected-date-badge");
       if (!el) return;
       const d = (typeof getSelectedDate === "function") ? getSelectedDate() : (document.getElementById("date")?.value || "");
-      el.innerHTML = `<span class="k">선택 날짜</span><span class="v">${formatSelectedDateKo(d)}</span>`;
+      el.innerHTML = `<span class="k">${trUi("선택 날짜")}</span><span class="v">${formatSelectedDateKo(d)}</span>`;
     }
 
     function todayStr() {
@@ -2666,8 +2681,10 @@
       const dt = new Date(dStr + "T00:00:00");
       const m = dt.getMonth() + 1;
       const d = dt.getDate();
-      const w = ["일", "월", "화", "수", "목", "금", "토"][dt.getDay()];
-      const str = `${m}월 ${d}일 (${w})`;
+      const w = isEnglishUi()
+        ? ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"][dt.getDay()]
+        : ["일", "월", "화", "수", "목", "금", "토"][dt.getDay()];
+      const str = isEnglishUi() ? `${m}/${d} (${w})` : `${m}월 ${d}일 (${w})`;
       lbl.textContent = str;
 
       const titleBadge = document.getElementById("title-date-badge");
