@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="ko">
+<html lang="{{ request.LANGUAGE_CODE|default:'ko' }}">
 <head>
   <meta charset="utf-8"/>
   <meta name="viewport" content="width=device-width,initial-scale=1"/>
@@ -55,6 +55,7 @@
   </style>
 </head>
 <body>
+{% include "reservations/_language_switcher.html" %}
 <header>
   <div class="wrap">
     <div style="display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap;align-items:flex-end">

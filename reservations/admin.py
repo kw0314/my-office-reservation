@@ -6,6 +6,7 @@ from django.core.exceptions import PermissionDenied
 from django.db.models import Count, Q, OuterRef, Subquery, Case, When, Value, IntegerField
 from django.template.response import TemplateResponse
 from django.utils import timezone
+from django.utils.translation import gettext as _, gettext_lazy, ngettext
 from zoneinfo import ZoneInfo
 
 from .models import Room, Reservation, Block, AccessDevice, AuditLog
@@ -23,13 +24,13 @@ class RoomAdmin(admin.ModelAdmin):
 
 class SeriesFilter(admin.SimpleListFilter):
     """Filter reservations by series (recurring) vs single."""
-    title = "예약 유형"
+    title = gettext_lazy("예약 유형")
     parameter_name = "series_type"
 
     def lookups(self, request, model_admin):
         return [
-            ("series", "반복 예약 (시리즈)"),
-            ("single", "단건 예약"),
+            ("series", _("반복 예약 (시리즈)")),
+            ("single", _("단건 예약")),
         ]
 
     def queryset(self, request, queryset):
@@ -78,7 +79,7 @@ class ReservationAdmin(admin.ModelAdmin):
 
     # ── Custom list columns ──────────────────────────────────────
 
-    @admin.display(description="회의실")
+    @admin.display(description=gettext_lazy("회의실"))
     def room_link(self, obj):
         if obj.series_id:
             url = reverse("admin:reservations_reservation_series_detail", args=[obj.series_id])
@@ -86,7 +87,7 @@ class ReservationAdmin(admin.ModelAdmin):
             url = reverse("admin:reservations_reservation_change", args=[obj.pk])
         return format_html('<a href="{}" style="font-weight:600">{}</a>', url, obj.room.name)
 
-    @admin.display(description="제목")
+    @admin.display(description=gettext_lazy("제목"))
     def title_link(self, obj):
         if obj.series_id:
             url = reverse("admin:reservations_reservation_series_detail", args=[obj.series_id])
@@ -94,7 +95,7 @@ class ReservationAdmin(admin.ModelAdmin):
             url = reverse("admin:reservations_reservation_change", args=[obj.pk])
         return format_html('<a href="{}">{}</a>', url, obj.title)
 
-    @admin.display(description="시작", ordering="start_at")
+    @admin.display(description=gettext_lazy("시작"), ordering="start_at")
     def start_at_local(self, obj):
         local = timezone.localtime(obj.start_at, TZ)
         return format_html(
@@ -102,7 +103,7 @@ class ReservationAdmin(admin.ModelAdmin):
             local.strftime("%Y-%m-%d %H:%M"),
         )
 
-    @admin.display(description="종료", ordering="end_at")
+    @admin.display(description=gettext_lazy("종료"), ordering="end_at")
     def end_at_local(self, obj):
         local = timezone.localtime(obj.end_at, TZ)
         return format_html(
@@ -110,12 +111,12 @@ class ReservationAdmin(admin.ModelAdmin):
             local.strftime("%Y-%m-%d %H:%M"),
         )
 
-    @admin.display(description="상태")
+    @admin.display(description=gettext_lazy("상태"))
     def status_badge(self, obj):
         colors = {
-            Reservation.STATUS_CONFIRMED: ("#16a34a", "#dcfce7", "확정"),
-            Reservation.STATUS_PENDING: ("#d97706", "#fef3c7", "대기"),
-            Reservation.STATUS_CANCELLED: ("#dc2626", "#fee2e2", "취소"),
+            Reservation.STATUS_CONFIRMED: ("#16a34a", "#dcfce7", _("확정")),
+            Reservation.STATUS_PENDING: ("#d97706", "#fef3c7", _("대기")),
+            Reservation.STATUS_CANCELLED: ("#dc2626", "#fee2e2", _("취소")),
         }
         fg, bg, label = colors.get(obj.status, ("#666", "#eee", obj.status))
         return format_html(
@@ -124,11 +125,12 @@ class ReservationAdmin(admin.ModelAdmin):
             bg, fg, label,
         )
 
-    @admin.display(description="시리즈")
+    @admin.display(description=gettext_lazy("시리즈"))
     def series_info(self, obj):
         if not obj.series_id:
             return format_html(
-                '<span style="color:#9ca3af;font-size:12px">단건</span>'
+                '<span style="color:#9ca3af;font-size:12px">{}</span>',
+                _("단건"),
             )
         # Count siblings in the same series
         count = Reservation.objects.filter(
@@ -139,27 +141,40 @@ class ReservationAdmin(admin.ModelAdmin):
         return format_html(
             '<a href="{}" style="background:#ede9fe;color:#7c3aed;padding:3px 10px;'
             'border-radius:12px;font-size:12px;font-weight:600;text-decoration:none">'
-            '🔁 {}건</a>',
-            detail_url, count,
+            '{}</a>',
+            detail_url,
+            _("%(count)s건") % {"count": count},
         )
 
-    @admin.display(description="승인")
+    @admin.display(description=gettext_lazy("관리"))
     def approve_button(self, obj):
         if obj.status == Reservation.STATUS_PENDING:
             if obj.series_id:
-                series_url = reverse("admin:reservations_reservation_approve_series", args=[obj.series_id])
+                approve_url = reverse("admin:reservations_reservation_approve_series", args=[obj.series_id])
+                reject_url = reverse("admin:reservations_reservation_reject_series", args=[obj.series_id])
                 return format_html(
+                    '<span style="display:flex;gap:6px;align-items:center;white-space:nowrap">'
                     '<a class="button" href="{}" style="font-size:12px;padding:4px 10px;'
                     'background:#7c3aed;color:#fff;border-radius:6px;text-decoration:none">'
-                    '시리즈 승인</a>',
-                    series_url,
+                    '{}</a>'
+                    '<a class="button" href="{}" style="font-size:12px;padding:4px 10px;'
+                    'background:#dc2626;color:#fff;border-radius:6px;text-decoration:none" '
+                    'onclick="return confirm(\'{}\')">'
+                    '{}</a>'
+                    '</span>',
+                    approve_url,
+                    _("시리즈 승인"),
+                    reject_url,
+                    _("시리즈 전체를 거절/취소합니다. 이 작업은 되돌릴 수 없습니다. 계속하시겠습니까?"),
+                    _("거절/취소"),
                 )
             single_url = reverse("admin:reservations_reservation_approve", args=[obj.pk])
             return format_html(
                 '<a class="button" href="{}" style="font-size:12px;padding:4px 10px;'
                 'background:#16a34a;color:#fff;border-radius:6px;text-decoration:none">'
-                '승인</a>',
+                '{}</a>',
                 single_url,
+                _("승인"),
             )
         return format_html('<span style="color:#9ca3af">-</span>')
 
@@ -204,9 +219,9 @@ class ReservationAdmin(admin.ModelAdmin):
             reservation.status = Reservation.STATUS_CONFIRMED
             reservation.save(update_fields=["status", "updated_at"])
             send_reservation_status_email(reservation, 'confirmed')
-            self.message_user(request, f"예약 #{reservation.id}을(를) 승인했습니다.")
+            self.message_user(request, _("예약 #%(id)s을(를) 승인했습니다.") % {"id": reservation.id})
         else:
-            self.message_user(request, "이 예약은 이미 승인되었거나 취소된 상태입니다.", level=messages.WARNING)
+            self.message_user(request, _("이 예약은 이미 승인되었거나 취소된 상태입니다."), level=messages.WARNING)
 
         redirect_url = request.GET.get("next") or reverse("admin:reservations_reservation_changelist")
         return HttpResponseRedirect(redirect_url)
@@ -227,9 +242,9 @@ class ReservationAdmin(admin.ModelAdmin):
             send_reservation_status_email(approved_items, 'confirmed')
 
         if count:
-            self.message_user(request, f"시리즈 전체 {count}건을 승인했습니다.", level=messages.SUCCESS)
+            self.message_user(request, _("시리즈 전체 %(count)s건을 승인했습니다.") % {"count": count}, level=messages.SUCCESS)
         else:
-            self.message_user(request, "승인 대기 중인 예약이 없습니다.", level=messages.WARNING)
+            self.message_user(request, _("승인 대기 중인 예약이 없습니다."), level=messages.WARNING)
 
         redirect_url = request.GET.get("next") or reverse("admin:reservations_reservation_changelist")
         return HttpResponseRedirect(redirect_url)
@@ -253,9 +268,9 @@ class ReservationAdmin(admin.ModelAdmin):
             send_reservation_status_email(rejected_items, 'cancelled')
 
         if count:
-            self.message_user(request, f"시리즈 전체 {count}건을 거절/취소했습니다.", level=messages.SUCCESS)
+            self.message_user(request, _("시리즈 전체 %(count)s건을 거절/취소했습니다.") % {"count": count}, level=messages.SUCCESS)
         else:
-            self.message_user(request, "처리할 예약이 없습니다.", level=messages.WARNING)
+            self.message_user(request, _("처리할 예약이 없습니다."), level=messages.WARNING)
 
         redirect_url = request.GET.get("next") or reverse("admin:reservations_reservation_changelist")
         return HttpResponseRedirect(redirect_url)
@@ -279,7 +294,7 @@ class ReservationAdmin(admin.ModelAdmin):
                         count += 1
                     if approved_items:
                         send_reservation_status_email(approved_items, 'confirmed')
-                    self.message_user(request, f"선택한 항목 {count}건을 승인했습니다.", level=messages.SUCCESS)
+                    self.message_user(request, _("선택한 항목 %(count)s건을 승인했습니다.") % {"count": count}, level=messages.SUCCESS)
                 
                 elif action == "reject_selected":
                     rejected_items = []
@@ -290,7 +305,7 @@ class ReservationAdmin(admin.ModelAdmin):
                         count += 1
                     if rejected_items:
                         send_reservation_status_email(rejected_items, 'cancelled')
-                    self.message_user(request, f"선택한 항목 {count}건을 거절/취소했습니다.", level=messages.SUCCESS)
+                    self.message_user(request, _("선택한 항목 %(count)s건을 거절/취소했습니다.") % {"count": count}, level=messages.SUCCESS)
                     
             return HttpResponseRedirect(request.path)
 
@@ -317,7 +332,7 @@ class ReservationAdmin(admin.ModelAdmin):
 
         context = {
             **self.admin_site.each_context(request),
-            "title": f"반복 예약 시리즈 상세",
+            "title": _("반복 예약 시리즈 상세"),
             "items": items,
             "series_id": str(series_id),
             "room_name": items[0].room.name if items else "",
@@ -334,7 +349,7 @@ class ReservationAdmin(admin.ModelAdmin):
 
     # ── Bulk actions ─────────────────────────────────────────────
 
-    @admin.action(description="선택한 예약을 승인(Confirmed) 처리합니다")
+    @admin.action(description=gettext_lazy("선택한 예약을 승인(Confirmed) 처리합니다"))
     def approve_reservations(self, request, queryset):
         pending_qs = queryset.filter(status=Reservation.STATUS_PENDING)
         updated = 0
@@ -346,9 +361,9 @@ class ReservationAdmin(admin.ModelAdmin):
             approved_items.append(r)
         if approved_items:
             send_reservation_status_email(approved_items, 'confirmed')
-        self.message_user(request, f"{updated}개의 예약을 승인했습니다.")
+        self.message_user(request, ngettext("%(count)s개의 예약을 승인했습니다.", "%(count)s개의 예약을 승인했습니다.", updated) % {"count": updated})
 
-    @admin.action(description="선택한 예약을 거절/취소(Cancelled) 처리합니다")
+    @admin.action(description=gettext_lazy("선택한 예약을 거절/취소(Cancelled) 처리합니다"))
     def reject_reservations(self, request, queryset):
         active_qs = queryset.filter(status__in=[Reservation.STATUS_CONFIRMED, Reservation.STATUS_PENDING])
         updated = 0
@@ -360,16 +375,16 @@ class ReservationAdmin(admin.ModelAdmin):
             rejected_items.append(r)
         if rejected_items:
             send_reservation_status_email(rejected_items, 'cancelled')
-        self.message_user(request, f"{updated}개의 예약을 거절/취소 처리했습니다.")
+        self.message_user(request, ngettext("%(count)s개의 예약을 거절/취소 처리했습니다.", "%(count)s개의 예약을 거절/취소 처리했습니다.", updated) % {"count": updated})
 
-    @admin.action(description="선택한 예약의 시리즈 전체를 승인합니다")
+    @admin.action(description=gettext_lazy("선택한 예약의 시리즈 전체를 승인합니다"))
     def approve_series_reservations(self, request, queryset):
         series_ids = set(
             queryset.filter(series_id__isnull=False)
             .values_list("series_id", flat=True)
         )
         if not series_ids:
-            self.message_user(request, "선택된 항목 중 시리즈 예약이 없습니다.", level=messages.WARNING)
+            self.message_user(request, _("선택된 항목 중 시리즈 예약이 없습니다."), level=messages.WARNING)
             return
         updated = 0
         approved_items = []
@@ -382,17 +397,17 @@ class ReservationAdmin(admin.ModelAdmin):
             send_reservation_status_email(approved_items, 'confirmed')
         self.message_user(
             request,
-            f"{len(series_ids)}개 시리즈, 총 {updated}건을 승인했습니다.",
+            _("%(series_count)s개 시리즈, 총 %(count)s건을 승인했습니다.") % {"series_count": len(series_ids), "count": updated},
         )
 
-    @admin.action(description="선택한 예약의 시리즈 전체를 거절/취소합니다")
+    @admin.action(description=gettext_lazy("선택한 예약의 시리즈 전체를 거절/취소합니다"))
     def reject_series_reservations(self, request, queryset):
         series_ids = set(
             queryset.filter(series_id__isnull=False)
             .values_list("series_id", flat=True)
         )
         if not series_ids:
-            self.message_user(request, "선택된 항목 중 시리즈 예약이 없습니다.", level=messages.WARNING)
+            self.message_user(request, _("선택된 항목 중 시리즈 예약이 없습니다."), level=messages.WARNING)
             return
         updated = 0
         rejected_items = []
@@ -408,7 +423,7 @@ class ReservationAdmin(admin.ModelAdmin):
             send_reservation_status_email(rejected_items, 'cancelled')
         self.message_user(
             request,
-            f"{len(series_ids)}개 시리즈, 총 {updated}건을 거절/취소했습니다.",
+            _("%(series_count)s개 시리즈, 총 %(count)s건을 거절/취소했습니다.") % {"series_count": len(series_ids), "count": updated},
         )
 
     # ── save_model / delete overrides ────────────────────────────
@@ -465,5 +480,3 @@ class AuditLogAdmin(admin.ModelAdmin):
     list_display = ("at", "actor_type", "actor_label", "action", "ip")
     list_filter = ("actor_type", "action")
     search_fields = ("actor_label",)
-
-

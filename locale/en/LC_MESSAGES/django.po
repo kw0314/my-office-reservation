@@ -1,0 +1,281 @@
+msgid ""
+msgstr ""
+"Project-Id-Version: my-office-reservation\n"
+"Report-Msgid-Bugs-To: \n"
+"POT-Creation-Date: 2026-07-11 00:00-0500\n"
+"PO-Revision-Date: 2026-07-11 00:00-0500\n"
+"Last-Translator: Codex <codex@example.com>\n"
+"Language-Team: English\n"
+"Language: en\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Plural-Forms: nplurals=2; plural=(n != 1);\n"
+
+msgid "한국어"
+msgstr "Korean"
+
+msgid "English"
+msgstr "English"
+
+msgid "[사무실 예약] 신청하신 예약이 확정되었습니다."
+msgstr "[Office Reservation] Your reservation has been confirmed."
+
+msgid "[사무실 예약] 예약 정보가 변경되었습니다."
+msgstr "[Office Reservation] Your reservation has been modified."
+
+msgid "[사무실 예약] 예약이 취소(반려)되었습니다."
+msgstr "[Office Reservation] Your reservation has been cancelled or rejected."
+
+msgid "[사무실 예약] 안내 메시지"
+msgstr "[Office Reservation] Notice"
+
+msgid "%(start)s ~ %(end)s 외 %(extra_count)s건 (총 %(count)s건)"
+msgstr "%(start)s ~ %(end)s plus %(extra_count)s more (total %(count)s)"
+
+msgid "- 교리실: %(room)s\n- 일시: %(date)s\n- 예약명: %(title)s"
+msgstr "- Room: %(room)s\n- Date/Time: %(date)s\n- Reservation Name: %(title)s"
+
+msgid ""
+"안녕하세요,\n"
+"\n"
+"신청하신 다음 예약이 확정되었습니다.\n"
+"\n"
+"%(details)s\n"
+"\n"
+"감사합니다."
+msgstr ""
+"Hello,\n"
+"\n"
+"The following reservation has been confirmed.\n"
+"\n"
+"%(details)s\n"
+"\n"
+"Thank you."
+
+msgid ""
+"안녕하세요,\n"
+"\n"
+"신청하신 예약의 상세 정보가 관리자에 의해 변경되었습니다.\n"
+"\n"
+"%(details)s\n"
+"\n"
+"변경된 예약 정보를 확인해 주세요.\n"
+"\n"
+"감사합니다."
+msgstr ""
+"Hello,\n"
+"\n"
+"The details of your reservation have been changed by an administrator.\n"
+"\n"
+"%(details)s\n"
+"\n"
+"Please review the updated reservation information.\n"
+"\n"
+"Thank you."
+
+msgid ""
+"안녕하세요,\n"
+"\n"
+"신청하신 예약이 관리자에 의해 취소 또는 반려 처리되었습니다.\n"
+"\n"
+"%(details)s\n"
+"\n"
+"감사합니다."
+msgstr ""
+"Hello,\n"
+"\n"
+"Your reservation has been cancelled or rejected by an administrator.\n"
+"\n"
+"%(details)s\n"
+"\n"
+"Thank you."
+
+msgid "생성 가능한 최대 횟수를 초과합니다 (max %(max)s)."
+msgstr "The maximum number of occurrences has been exceeded (max %(max)s)."
+
+msgid "예약명을 입력해 주세요."
+msgstr "Please enter a reservation name."
+
+msgid "신청자 전화번호를 입력해 주세요."
+msgstr "Please enter the requester phone number."
+
+msgid "반복 예약에는 종료일이 필요합니다."
+msgstr "Recurring reservations require an end date."
+
+msgid "종료일은 시작일 이후여야 합니다."
+msgstr "The end date must be after the start date."
+
+msgid "반복 범위가 너무 큽니다 (max 2년)."
+msgstr "The repeat range is too large (max 2 years)."
+
+msgid "생성되는 예약이 없습니다. 반복 설정을 확인해 주세요."
+msgstr "No reservations will be created. Please check the repeat settings."
+
+msgid "Invalid repeat_until date."
+msgstr "Invalid repeat_until date."
+
+msgid "Invalid room_id or payload."
+msgstr "Invalid room_id or payload."
+
+msgid "Cancel PIN locked. Try again later."
+msgstr "Cancel PIN locked. Try again later."
+
+msgid "Invalid cancel PIN."
+msgstr "Invalid cancel PIN."
+
+msgid "Invalid series_repeat_until date."
+msgstr "Invalid series_repeat_until date."
+
+msgid "No series_id available for series update."
+msgstr "No series_id available for series update."
+
+msgid "Reservation not found."
+msgstr "Reservation not found."
+
+msgid "예약 유형"
+msgstr "Reservation Type"
+
+msgid "반복 예약 (시리즈)"
+msgstr "Recurring Reservation (Series)"
+
+msgid "단건 예약"
+msgstr "Single Reservation"
+
+msgid "회의실"
+msgstr "Room"
+
+msgid "제목"
+msgstr "Title"
+
+msgid "시작"
+msgstr "Start"
+
+msgid "종료"
+msgstr "End"
+
+msgid "상태"
+msgstr "Status"
+
+msgid "확정"
+msgstr "Confirmed"
+
+msgid "대기"
+msgstr "Pending"
+
+msgid "취소"
+msgstr "Cancelled"
+
+msgid "시리즈"
+msgstr "Series"
+
+msgid "단건"
+msgstr "Single"
+
+msgid "%(count)s건"
+msgstr "%(count)s items"
+
+msgid "승인"
+msgstr "Approve"
+
+msgid "시리즈 승인"
+msgstr "Approve Series"
+
+msgid "예약 #%(id)s을(를) 승인했습니다."
+msgstr "Reservation #%(id)s has been approved."
+
+msgid "이 예약은 이미 승인되었거나 취소된 상태입니다."
+msgstr "This reservation is already approved or cancelled."
+
+msgid "시리즈 전체 %(count)s건을 승인했습니다."
+msgstr "Approved %(count)s reservations in the series."
+
+msgid "승인 대기 중인 예약이 없습니다."
+msgstr "There are no reservations pending approval."
+
+msgid "시리즈 전체 %(count)s건을 거절/취소했습니다."
+msgstr "Rejected/cancelled %(count)s reservations in the series."
+
+msgid "처리할 예약이 없습니다."
+msgstr "There are no reservations to process."
+
+msgid "선택한 항목 %(count)s건을 승인했습니다."
+msgstr "Approved %(count)s selected items."
+
+msgid "선택한 항목 %(count)s건을 거절/취소했습니다."
+msgstr "Rejected/cancelled %(count)s selected items."
+
+msgid "반복 예약 시리즈 상세"
+msgstr "Recurring Reservation Series Detail"
+
+msgid "선택한 예약을 승인(Confirmed) 처리합니다"
+msgstr "Approve the selected reservations."
+
+msgid "%(count)s개의 예약을 승인했습니다."
+msgstr "Approved %(count)s reservations."
+
+msgid "선택한 예약을 거절/취소(Cancelled) 처리합니다"
+msgstr "Reject/cancel the selected reservations."
+
+msgid "%(count)s개의 예약을 거절/취소 처리했습니다."
+msgstr "Rejected/cancelled %(count)s reservations."
+
+msgid "선택한 예약의 시리즈 전체를 승인합니다"
+msgstr "Approve the full series for the selected reservations."
+
+msgid "선택된 항목 중 시리즈 예약이 없습니다."
+msgstr "None of the selected items are series reservations."
+
+msgid "%(series_count)s개 시리즈, 총 %(count)s건을 승인했습니다."
+msgstr "Approved %(count)s reservations across %(series_count)s series."
+
+msgid "선택한 예약의 시리즈 전체를 거절/취소합니다"
+msgstr "Reject/cancel the full series for the selected reservations."
+
+msgid "%(series_count)s개 시리즈, 총 %(count)s건을 거절/취소했습니다."
+msgstr "Rejected/cancelled %(count)s reservations across %(series_count)s series."
+
+msgid "전체"
+msgstr "Total"
+
+msgid "시리즈 전체 대기 중인 %(count)s건을 승인합니다. 계속하시겠습니까?"
+msgstr "Approve all %(count)s pending reservations in this series. Continue?"
+
+msgid "전체 승인 (%(count)s건)"
+msgstr "Approve All (%(count)s)"
+
+msgid "시리즈 전체를 거절/취소합니다. 이 작업은 되돌릴 수 없습니다. 계속하시겠습니까?"
+msgstr "Reject/cancel the full series. This cannot be undone. Continue?"
+
+msgid "전체 거절/취소"
+msgstr "Reject/Cancel All"
+
+msgid "거절/취소"
+msgstr "Reject/Cancel"
+
+msgid "선택한 항목을 승인하시겠습니까?"
+msgstr "Approve the selected items?"
+
+msgid "선택 승인"
+msgstr "Approve Selected"
+
+msgid "선택한 항목을 거절/취소하시겠습니까?"
+msgstr "Reject/cancel the selected items?"
+
+msgid "선택 거절/취소"
+msgstr "Reject/Cancel Selected"
+
+msgid "목록으로"
+msgstr "Back to List"
+
+msgid "날짜"
+msgstr "Date"
+
+msgid "시간"
+msgstr "Time"
+
+msgid "관리"
+msgstr "Manage"
+
+msgid "수정/취소"
+msgstr "Edit/Cancel"

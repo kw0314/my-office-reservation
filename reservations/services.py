@@ -7,6 +7,7 @@ import uuid
 from django.db import transaction
 from django.core.exceptions import ValidationError
 from django.utils import timezone
+from django.utils.translation import gettext as _
 from django.contrib.auth.hashers import make_password
 
 from .models import Reservation, Block, Room, AccessDevice, AuditLog
@@ -111,7 +112,7 @@ def _generate_repeat_dates(
             m += 1
         result = sorted(set(result))
         if len(result) > MAX_RECUR_OCCURRENCES:
-            raise ValidationError(f"생성 가능한 최대 횟수를 초과합니다 (max {MAX_RECUR_OCCURRENCES}).")
+            raise ValidationError(_("생성 가능한 최대 횟수를 초과합니다 (max %(max)s).") % {"max": MAX_RECUR_OCCURRENCES})
 
     elif repeat_type == "monthly_custom":
         if not repeat_days or not repeat_weeks_of_month:
@@ -133,7 +134,7 @@ def _generate_repeat_dates(
                 cur_m = 1
         result = sorted(set(result))
         if len(result) > MAX_RECUR_OCCURRENCES:
-            raise ValidationError(f"생성 가능한 최대 횟수를 초과합니다 (max {MAX_RECUR_OCCURRENCES}).")
+            raise ValidationError(_("생성 가능한 최대 횟수를 초과합니다 (max %(max)s).") % {"max": MAX_RECUR_OCCURRENCES})
 
     else:  # weekly (handles weekly / biweekly / N-weekly / weekdays)
         if not repeat_days:
@@ -157,7 +158,7 @@ def _generate_repeat_dates(
                     result.append(cur)
                     if len(result) > MAX_RECUR_OCCURRENCES:
                         raise ValidationError(
-                            f"생성 가능한 최대 횟수를 초과합니다 (max {MAX_RECUR_OCCURRENCES})."
+                            _("생성 가능한 최대 횟수를 초과합니다 (max %(max)s).") % {"max": MAX_RECUR_OCCURRENCES}
                         )
             cur += timedelta(days=1)
 
@@ -186,9 +187,9 @@ def create_reservation(*, room: Room, start_at, end_at, title: str, note_interna
     note_s = note_internal.strip()
     phone_s = phone.strip()
     if not title_s:
-        raise ValidationError("예약명을 입력해 주세요.")
+        raise ValidationError(_("예약명을 입력해 주세요."))
     if not phone_s:
-        raise ValidationError("신청자 전화번호를 입력해 주세요.")
+        raise ValidationError(_("신청자 전화번호를 입력해 주세요."))
     duration = end_at - start_at
 
     is_approval_required = room.requires_approval or "[승인필요]" in room.name
@@ -232,7 +233,7 @@ def create_reservation(*, room: Room, start_at, end_at, title: str, note_interna
 
     # --- recurring ---
     if repeat_until is None:
-        raise ValidationError("반복 예약에는 종료일이 필요합니다.")
+        raise ValidationError(_("반복 예약에는 종료일이 필요합니다."))
 
     if repeat_days:
         repeat_days = sorted({int(x) for x in repeat_days})
@@ -243,9 +244,9 @@ def create_reservation(*, room: Room, start_at, end_at, title: str, note_interna
     local_start = timezone.localtime(start_at, TZ)
     start_date = local_start.date()
     if repeat_until < start_date:
-        raise ValidationError("종료일은 시작일 이후여야 합니다.")
+        raise ValidationError(_("종료일은 시작일 이후여야 합니다."))
     if (repeat_until - start_date).days > 730:
-        raise ValidationError("반복 범위가 너무 큽니다 (max 2년).")
+        raise ValidationError(_("반복 범위가 너무 큽니다 (max 2년)."))
 
     local_t = local_start.timetz().replace(tzinfo=None)
     candidate_dates = _generate_repeat_dates(
@@ -258,7 +259,7 @@ def create_reservation(*, room: Room, start_at, end_at, title: str, note_interna
     )
 
     if not candidate_dates:
-        raise ValidationError("생성되는 예약이 없습니다. 반복 설정을 확인해 주세요.")
+        raise ValidationError(_("생성되는 예약이 없습니다. 반복 설정을 확인해 주세요."))
 
 
     # Build timezone-aware instance intervals
@@ -367,12 +368,12 @@ def update_reservation(*, reservation_id, room: Room, start_at, end_at, title: s
     r.end_at = end_at
     title_s = title.strip()
     if not title_s:
-        raise ValidationError("예약명을 입력해 주세요.")
+        raise ValidationError(_("예약명을 입력해 주세요."))
 
     r.title = title_s
     r.note_internal = note_internal.strip()
     if phone is not None and not phone.strip():
-        raise ValidationError("신청자 전화번호를 입력해 주세요.")
+        raise ValidationError(_("신청자 전화번호를 입력해 주세요."))
     if color:
         r.color = color
     if email is not None:
@@ -493,12 +494,12 @@ def update_reservation_series(*, reservation_id, series_id: str, room: Room | No
         if title is not None:
             title_s = title.strip()
             if not title_s:
-                raise ValidationError("예약명을 입력해 주세요.")
+                raise ValidationError(_("예약명을 입력해 주세요."))
             r.title = title_s
         if note_internal is not None:
             r.note_internal = note_internal.strip()
         if phone is not None and not phone.strip():
-            raise ValidationError("신청자 전화번호를 입력해 주세요.")
+            raise ValidationError(_("신청자 전화번호를 입력해 주세요."))
         if color is not None:
             r.color = color
         if email is not None:

@@ -1,0 +1,316 @@
+{% load i18n %}
+<style>
+  .language-switcher {
+    position: fixed;
+    top: 12px;
+    right: 12px;
+    z-index: 5000;
+    display: inline-flex;
+    gap: 4px;
+    align-items: center;
+    padding: 4px;
+    border: 1px solid rgba(148, 163, 184, 0.38);
+    border-radius: 999px;
+    background: rgba(255, 255, 255, 0.92);
+    box-shadow: 0 8px 20px rgba(15, 23, 42, 0.12);
+    backdrop-filter: blur(8px);
+  }
+  .language-switcher button {
+    min-width: 54px;
+    padding: 6px 10px;
+    border: 0;
+    border-radius: 999px;
+    background: transparent;
+    color: #334155;
+    font: 700 12px/1 system-ui, -apple-system, Segoe UI, Roboto, sans-serif;
+    cursor: pointer;
+  }
+  .language-switcher button.active {
+    background: #0f172a;
+    color: #fff;
+  }
+  @media (prefers-color-scheme: dark) {
+    .language-switcher {
+      background: rgba(15, 23, 42, 0.86);
+      border-color: rgba(148, 163, 184, 0.28);
+    }
+    .language-switcher button {
+      color: #dbeafe;
+    }
+    .language-switcher button.active {
+      background: #e0f2fe;
+      color: #0f172a;
+    }
+  }
+</style>
+<form action="{% url 'set_language' %}" method="post" class="language-switcher" aria-label="Language">
+  {% csrf_token %}
+  <input name="next" type="hidden" value="{{ request.get_full_path }}">
+  <button type="submit" name="language" value="ko" class="{% if request.LANGUAGE_CODE|slice:':2' == 'ko' %}active{% endif %}">한글</button>
+  <button type="submit" name="language" value="en" class="{% if request.LANGUAGE_CODE|slice:':2' == 'en' %}active{% endif %}">EN</button>
+</form>
+<script>
+  (function () {
+    const currentLanguage = "{{ request.LANGUAGE_CODE|default:'ko' }}".slice(0, 2);
+    document.documentElement.lang = currentLanguage;
+
+    const exact = {
+      "사무실 — 교리실 예약": "Office - Room Reservations",
+      "교리실 예약 현황": "Room Reservation Status",
+      "교리실별 예약 현황": "Reservations by Room",
+      "각 교리실 카드에서 예약을 확인하고, PIN으로 취소(단건/전체)할 수 있습니다.": "Check reservations by room card and cancel with a PIN for one reservation or an entire series.",
+      "빈칸 클릭 → 예약 생성 / 예약 블록 선택 → 수정/삭제 가능": "Click an empty slot to create a reservation / select a reservation block to edit or delete",
+      "날짜": "Date",
+      "보기": "View",
+      "교리실": "Room",
+      "사용불가": "Unavailable",
+      "오늘": "Today",
+      "새로고침": "Refresh",
+      "타임라인 보기": "Timeline",
+      "전체 그리드": "Full Grid",
+      "교리실 목록": "Room List",
+      "예약을 클릭하면 수정/취소가 가능합니다.": "Click a reservation to edit or cancel it.",
+      "예약 수정": "Edit Reservation",
+      "예약 생성": "Create Reservation",
+      "예약 수정/취소": "Edit/Cancel Reservation",
+      "예약 현황": "Reservation Status",
+      "예약이 없습니다.": "No reservations.",
+      "이 날짜에는 예약이 없습니다.": "There are no reservations on this date.",
+      "제목": "Title",
+      "예약명": "Reservation Name",
+      "취소 PIN (취소 시 필요)": "Cancel PIN (required to cancel)",
+      "시작": "Start",
+      "종료": "End",
+      "시간": "Duration",
+      "시작(로컬)": "Start (local)",
+      "종료(로컬)": "End (local)",
+      "내부 메모": "Internal Note",
+      "닫기": "Close",
+      "예약 취소": "Cancel Reservation",
+      "저장": "Save",
+      "생성": "Create",
+      "수정 저장": "Save Changes",
+      "수정/취소 PIN(4자리)": "Edit/Cancel PIN (4 digits)",
+      "새 PIN(선택)": "New PIN (optional)",
+      "표시": "Show",
+      "선택 입력": "Optional",
+      "예: 유스그룹": "Example: Youth Group",
+      "예: 214-555-1234": "Example: 214-555-1234",
+      "예: 담당자/연락처 등 (공개되지 않음)": "Example: contact person/phone, etc. (not public)",
+      "변경할 때만 입력": "Enter only when changing",
+      "30분": "30 min",
+      "1시간": "1 hour",
+      "1시간 30분": "1 hour 30 min",
+      "2시간": "2 hours",
+      "2시간 30분": "2 hours 30 min",
+      "3시간": "3 hours",
+      "3시간 30분": "3 hours 30 min",
+      "4시간": "4 hours",
+      "취소(비번 필요)": "Cancel (PIN required)",
+      "저장(비번 필요)": "Save (PIN required)",
+      "신청자 이메일": "Requester Email",
+      "신청자 전화번호": "Requester Phone",
+      "색상": "Color",
+      "수정/취소 범위": "Edit/Cancel Scope",
+      "현재 예약만": "This reservation only",
+      "전체(반복 예약)": "All recurring reservations",
+      "반복 종료일(새 값)": "Repeat end date (new value)",
+      "반복": "Repeat",
+      "반복 예약": "Recurring Reservation",
+      "반복 없음": "No Repeat",
+      "매주": "Weekly",
+      "격주": "Biweekly",
+      "2주마다": "Biweekly",
+      "매월": "Monthly",
+      "매월 (같은 날짜)": "Monthly (same date)",
+      "평일": "Weekdays",
+      "모든 평일 (월-금)": "Every weekday (Mon-Fri)",
+      "N 주마다": "Every N weeks",
+      "커스텀 (월별 특정 주/요일)": "Custom (specific week/day each month)",
+      "반복 간격:": "Repeat interval:",
+      "주 마다": "weeks",
+      "반복할 주": "Repeat weeks",
+      "1주": "Week 1",
+      "2주": "Week 2",
+      "3주": "Week 3",
+      "4주": "Week 4",
+      "마지막주": "Last week",
+      "반복 요일": "Repeat days",
+      "사용자 지정": "Custom",
+      "종료일": "End Date",
+      "선택 날짜": "Selected Date",
+      "선택됨": "Selected",
+      "시간 변경 모드": "Time Change Mode",
+      "그리드에서 시작 셀을 먼저 클릭한 후 종료 셀을 클릭하세요. (같은 교리실에서만 가능)": "Click the start cell first, then click the end cell in the grid. (Same room only)",
+      "취소: ESC 또는 “취소” 버튼": "Cancel: ESC or the Cancel button",
+      "-1주": "-1 week",
+      "-1일": "-1 day",
+      "+1일": "+1 day",
+      "+1주": "+1 week",
+      "예약": "Reservation",
+      "단건": "Single",
+      "전체": "All",
+      "승인 필요": "Approval Required",
+      "예약 없음": "No reservations",
+      "오늘 예약이 없습니다.": "No reservations today.",
+      "취소": "Cancel",
+      "대기": "Pending",
+      "대기중": "Pending",
+      "[대기중]": "[Pending]",
+      "확정": "Confirmed",
+      "취소 실패": "Cancel failed",
+      "저장 실패": "Save failed",
+      "불러오는 중...": "Loading...",
+      "불러오는 중…": "Loading...",
+      "처리 중...": "Processing...",
+      "저장되었습니다.": "Saved.",
+      "예약이 취소되었습니다.": "Reservation cancelled.",
+      "수정/취소 PIN(4자리)은 생성 시 필수입니다.": "An edit/cancel PIN (4 digits) is required when creating a reservation.",
+      "수정/취소 PIN(4자리)은 필수입니다.": "An edit/cancel PIN (4 digits) is required.",
+      "이 교리실은 관리자 승인 후 확정됩니다. 예약 후 대기 상태로 표시됩니다.": "This room requires admin approval. It will appear as pending after reservation.",
+      "예약 수정 모드에서만 시간 변경이 가능합니다.": "Time changes are available only in edit mode.",
+      "데이터를 불러오지 못했습니다.": "Could not load data.",
+      "그리드 로드 실패": "Grid load failed",
+      "예약 모달 오픈 중 오류가 발생했습니다": "An error occurred while opening the reservation modal",
+      "모달 열기 중 오류": "Error opening modal",
+      "종료 시간이 시작 시간보다 늦어야 합니다.": "End time must be later than start time.",
+      "예약명을 입력해 주세요.": "Please enter a reservation name.",
+      "올바른 이메일 형식을 입력해 주세요.": "Please enter a valid email address.",
+      "신청자 전화번호를 입력해 주세요.": "Please enter the requester phone number.",
+      "수정/취소 PIN(비번)은 숫자 4자리입니다.": "The edit/cancel PIN must be 4 digits.",
+      "수정/취소 PIN은 숫자 4자리입니다.": "The edit/cancel PIN must be 4 digits.",
+      "새 PIN은 숫자 4자리입니다.": "The new PIN must be 4 digits.",
+      "반복 종료일(언제까지)을 선택해 주세요.": "Please choose a repeat end date.",
+      "반복 요일을 1개 이상 선택해 주세요.": "Please choose at least one repeat day.",
+      "반복할 주를 1개 이상 선택해 주세요.": "Please choose at least one repeat week.",
+      "예약 생성 중...": "Creating reservation...",
+      "예약 승인 요청을 보내는 중입니다...": "Sending reservation approval request...",
+      "예약을 저장하는 중입니다...": "Saving reservation...",
+      "승인 대기 중": "Pending Approval",
+      "저장 완료": "Saved",
+      "예약 승인 대기 중입니다. 화면에 [대기중]으로 표시됩니다.": "Reservation is pending approval. It will appear as [Pending].",
+      "예약이 저장되었습니다. 화면을 새로고침합니다.": "Reservation saved. Refreshing the screen.",
+      "수정 저장 중...": "Saving changes...",
+      "변경 승인 요청을 보내는 중입니다...": "Sending change approval request...",
+      "변경 사항을 저장하는 중입니다...": "Saving changes...",
+      "변경 승인 대기 중": "Change Pending Approval",
+      "변경 사항이 저장되었습니다. 화면을 새로고침합니다.": "Changes saved. Refreshing the screen.",
+      "변경 승인 대기 중입니다. 화면에 [대기중]으로 표시됩니다.": "Changes are pending approval. It will appear as [Pending].",
+      "서버 응답이 지연되고 있습니다. 저장이 처리됐을 수도 있으니 새로고침 후 확인해 주세요.": "The server response is delayed. The save may have been processed, so please refresh and check.",
+      "저장 중 오류가 발생했습니다. 내용을 확인한 뒤 다시 시도해 주세요.": "An error occurred while saving. Please check the details and try again.",
+      "저장 중 예상치 못한 오류가 발생했습니다": "An unexpected error occurred while saving",
+      "정말 취소할까요?": "Are you sure you want to cancel?",
+      "범위": "Scope",
+      "전체 반복 예약": "All recurring reservations",
+      "현재 예약": "This reservation",
+      "반복 종료일": "Repeat End Date",
+      "종료 예정": "Expected End",
+      "교리실 위치": "Room Map",
+      "교리실 위치 지도": "Room Location Map",
+      "확대 (+)": "Zoom In (+)",
+      "축소 (-)": "Zoom Out (-)",
+      "창에 맞춤": "Fit to Window",
+      "닫기 ✕": "Close x",
+      "월": "Mon",
+      "화": "Tue",
+      "수": "Wed",
+      "목": "Thu",
+      "금": "Fri",
+      "토": "Sat",
+      "일": "Sun",
+      "첫째": "First",
+      "둘째": "Second",
+      "셋째": "Third",
+      "넷째": "Fourth",
+      "마지막": "Last",
+      "모든 평일 (월-금)": "Every weekday (Mon-Fri)",
+      "요일 선택 필요": "select days",
+      "주/요일 선택 필요": "select weeks/days",
+      "(제목 없음)": "(No title)",
+      "취소 PIN을 입력해주세요.": "Please enter the cancel PIN.",
+      "정말 이 예약을 취소하시겠습니까?": "Are you sure you want to cancel this reservation?",
+      "취소 PIN 4자리를 입력하세요.": "Please enter the 4-digit cancel PIN.",
+      "취소중…": "Cancelling...",
+      "로딩 완료": "Loaded",
+      "오류": "Error"
+    };
+
+    const patterns = [
+      [/^교리실 (.+) 예약 현황$/, "Room $1 Reservation Status"],
+      [/^교리실 (.+) 예약$/, "Room $1 Reservation"],
+      [/^예약 ([0-9]+)건$/, "$1 reservations"],
+      [/^총 ([0-9]+)건$/, "Total $1"],
+      [/^로딩 완료 · ([0-9]+)개 교리실$/, "Loaded · $1 rooms"],
+      [/^([0-9]{4}-[0-9]{2}-[0-9]{2})  ([0-9:]+)[–-]([0-9:]+)  \(30분 단위\)$/, "$1  $2-$3  (30-minute slots)"],
+      [/^선택: (.+)$/, "Selection: $1"],
+      [/^반복 종료일: (.+)$/, "Repeat end date: $1"],
+      [/^종료 예정: (.+)$/, "Expected end: $1"],
+      [/^([0-9]+)분$/, "$1 min"],
+      [/^([0-9]+)월$/, "$1"],
+      [/^([0-9]+)월 ([0-9]+)일 \((.+)\)$/, "$1/$2 ($3)"],
+      [/^([0-9]{4})년 ([0-9]+)월 ([0-9]+)일까지$/, "until $2/$3/$1"],
+      [/^매주 (.+)요일$/, "Every week on $1"],
+      [/^2주마다 (.+)요일$/, "Every 2 weeks on $1"],
+      [/^([0-9]+)주마다 (.+)요일$/, "Every $1 weeks on $2"],
+      [/^매월 ([0-9]+)일$/, "Monthly on day $1"],
+      [/^매월 (.+) 주 (.+)요일$/, "Monthly on the $1 week, $2"],
+      [/^정말 취소할까요\?\n\(범위: (.+)\)$/, "Are you sure you want to cancel?\n(Scope: $1)"],
+      [/^예약 #(.+) 을\(를\) (.+) 취소할까요\?$/, "Cancel reservation #$1 as $2?"],
+      [/^오류: (.+)$/, "Error: $1"],
+      [/^수정 실패: (.+)$/, "Update failed: $1"]
+    ];
+
+    function translateText(value) {
+      if (currentLanguage !== "en" || typeof value !== "string" || !value.trim()) return value;
+      const leading = value.match(/^\s*/)[0];
+      const trailing = value.match(/\s*$/)[0];
+      let text = value.trim();
+      if (exact[text]) return leading + exact[text] + trailing;
+      for (const [pattern, replacement] of patterns) {
+        if (pattern.test(text)) {
+          return leading + text.replace(pattern, replacement) + trailing;
+        }
+      }
+      return value;
+    }
+
+    window.tText = translateText;
+    window.translateUi = translateNode;
+
+    function translateElement(el) {
+      if (!el || el.closest(".language-switcher")) return;
+      for (const attr of ["placeholder", "title", "aria-label", "alt"]) {
+        if (el.hasAttribute && el.hasAttribute(attr)) {
+          el.setAttribute(attr, translateText(el.getAttribute(attr)));
+        }
+      }
+    }
+
+    function translateNode(node) {
+      if (currentLanguage !== "en") return;
+      if (node.nodeType === Node.TEXT_NODE) {
+        if (node.parentElement && node.parentElement.closest(".language-switcher")) return;
+        node.nodeValue = translateText(node.nodeValue);
+        return;
+      }
+      if (node.nodeType !== Node.ELEMENT_NODE) return;
+      translateElement(node);
+      const walker = document.createTreeWalker(node, NodeFilter.SHOW_TEXT);
+      const textNodes = [];
+      while (walker.nextNode()) textNodes.push(walker.currentNode);
+      textNodes.forEach(translateNode);
+      node.querySelectorAll?.("[placeholder], [title], [aria-label], [alt]").forEach(translateElement);
+    }
+
+    if (currentLanguage === "en") {
+      const rawAlert = window.alert;
+      const rawConfirm = window.confirm;
+      window.alert = function (message) { return rawAlert.call(window, translateText(String(message))); };
+      window.confirm = function (message) { return rawConfirm.call(window, translateText(String(message))); };
+
+      document.addEventListener("DOMContentLoaded", function () {
+        translateNode(document.body);
+      });
+    }
+  })();
+</script>
