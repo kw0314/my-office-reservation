@@ -71,6 +71,7 @@
       border-collapse: collapse;
       width: 100%;
       min-width: 1100px;
+      table-layout: fixed;
       user-select: none;
     }
 
@@ -80,6 +81,8 @@
       padding: 6px;
       font-size: 13px;
       /* default cell font */
+      vertical-align: top;
+      line-height: 1.2;
     }
 
     /* Room column specifically larger */
@@ -104,16 +107,45 @@
 
 
     .cell {
-      height: 34px;
-      min-width: 60px;
+      height: auto;
+      min-height: 34px;
+      width: 84px;
+      min-width: 84px;
+      max-width: 84px;
       cursor: pointer;
+      position: relative;
+      white-space: normal;
+      overflow: visible;
+      overflow-wrap: anywhere;
+      word-break: break-word;
+      line-height: 1.25;
+      text-align: left;
+    }
+
+    .range-label {
+      position: absolute;
+      inset: 4px auto 4px 4px;
+      width: calc((var(--range-slots, 1) * 100%) - 8px);
+      z-index: 2;
+      pointer-events: none;
+      display: flex;
+      align-items: center;
+      padding: 0 8px;
+      border: 1px solid rgba(31, 41, 55, 0.28);
+      border-radius: 6px;
+      background: var(--range-bg, rgba(243, 243, 255, 0.96));
+      box-shadow: 0 1px 2px rgba(15, 23, 42, 0.08);
+      font-weight: 600;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
     }
 
     .busy {
-      background: #f3f3ff;
+      background: transparent;
     }
 
-    .pending {
+    .range-label.pending {
       background-image: repeating-linear-gradient(
         45deg,
         rgba(255, 255, 255, 0.5),
@@ -125,7 +157,7 @@
     }
 
     .blocked {
-      background: #fff3f3;
+      background: transparent;
     }
 
     .selected {
@@ -261,6 +293,27 @@
 
     button.secondary {
       border-color: #777;
+    }
+
+    button.is-loading {
+      opacity: 0.78;
+      cursor: wait;
+    }
+
+    .btn-spinner {
+      display: inline-block;
+      width: 12px;
+      height: 12px;
+      margin-right: 6px;
+      border: 2px solid currentColor;
+      border-right-color: transparent;
+      border-radius: 50%;
+      vertical-align: -2px;
+      animation: spin .75s linear infinite;
+    }
+
+    @keyframes spin {
+      to { transform: rotate(360deg); }
     }
 
     .hint {
@@ -917,6 +970,10 @@
             <input type="radio" name="cancel-scope" value="series">전체(반복 예약)
           </label>
         </div>
+        <div id="series-end-row" style="display:none;margin-top:4px;">
+          <label style="display:block;font-size:12px;color:#555;margin-bottom:4px;">반복 종료일(새 값)</label>
+          <input id="series-end-date" type="date" style="padding:6px 8px;border:1px solid #ddd;border-radius:6px;min-width:160px;" />
+        </div>
         <div id="series-end-info" style="display:none;font-size:12px;color:#1f7a3a;background:#e8f5e9;padding:4px 8px;border-radius:4px;width:fit-content;margin-top:2px;"></div>
       </div>
     </div>
@@ -936,12 +993,16 @@
     </div>
 
     <div class="row">
-      <label>단체명(공개)</label>
-      <input id="title" type="text" placeholder="예: 유스그룹" />
+      <label>예약명 <span style="color: red;">*</span></label>
+      <input id="title" type="text" placeholder="예: 유스그룹" required />
     </div>
     <div class="row">
-      <label>신청자 이메일 <span style="color: red;">*</span></label>
-      <input id="email" type="email" placeholder="예: user@example.com (알림 수신용)" required style="flex:1; padding:8px 10px; border:1px solid #ddd; border-radius:8px; font-size:14px;" />
+      <label>신청자 이메일</label>
+      <input id="email" type="email" placeholder="선택 입력" style="flex:1; padding:8px 10px; border:1px solid #ddd; border-radius:8px; font-size:14px;" />
+    </div>
+    <div class="row">
+      <label>신청자 전화번호 <span style="color: red;">*</span></label>
+      <input id="phone" type="tel" placeholder="예: 214-555-1234" required style="flex:1; padding:8px 10px; border:1px solid #ddd; border-radius:8px; font-size:14px;" />
     </div>
 
     <div class="row">
@@ -1018,6 +1079,15 @@
       const v = String(el.value || "").trim();
       if (!/^\d{4}-\d{2}-\d{2}$/.test(v)) el.value = getSelectedDate();
     }
+
+    function syncSelectedDateToUrl() {
+      const d = getSelectedDate();
+      if (!/^\d{4}-\d{2}-\d{2}$/.test(d)) return;
+      const url = new URL(window.location.href);
+      if (url.searchParams.get("date") === d) return;
+      url.searchParams.set("date", d);
+      history.replaceState(null, "", url.toString());
+    }
     const modal = document.getElementById("modal");
     const banner = document.getElementById("time-banner");
 
@@ -1043,6 +1113,8 @@
 
       // create selection (open modal via Reserve button)
       pendingCreate: null, // {roomId, startLabel, endLabel}
+      autoColorManuallySelected: false,
+      savingReservation: false,
     };
 
 
@@ -1051,6 +1123,75 @@
 
     function parseISO(s) { return new Date(s); }
     function hhmm(d) { return String(d.getHours()).padStart(2, "0") + ":" + String(d.getMinutes()).padStart(2, "0"); }
+
+    const reservationColorPalette = [
+      "#e3f2fd",
+      "#e8f5e9",
+      "#fff9c4",
+      "#ffecb3",
+      "#fce4ec",
+      "#f3e5f5",
+      "#e0f2f1",
+      "#f5f5f5",
+    ];
+
+    function colorFromGroupName(groupName) {
+      const key = String(groupName || "").trim().toLocaleLowerCase();
+      if (!key) return reservationColorPalette[0];
+
+      let hash = 2166136261;
+      for (let i = 0; i < key.length; i++) {
+        hash ^= key.charCodeAt(i);
+        hash = Math.imul(hash, 16777619);
+      }
+      return reservationColorPalette[Math.abs(hash) % reservationColorPalette.length];
+    }
+
+    function setSelectedColor(color) {
+      document.querySelectorAll('.color-option').forEach(el => el.classList.remove('selected'));
+      const opt = document.querySelector(`.color-option[data-color="${color}"]`) || document.querySelector('.color-option');
+      if (opt) opt.classList.add('selected');
+      const colorInput = document.getElementById('selected-color');
+      if (colorInput) colorInput.value = color;
+    }
+
+    function applyAutoColorFromTitle(titleValue) {
+      setSelectedColor(colorFromGroupName(titleValue));
+    }
+
+    function setModalHint(message, color) {
+      const hint = document.getElementById("modal-hint");
+      if (!hint) return;
+      hint.textContent = message || "";
+      hint.style.color = color || "#666";
+    }
+
+    function setSaveButtonState(isSaving, text) {
+      const btn = document.getElementById("btn-save");
+      if (!btn) return;
+      btn.disabled = isSaving;
+      btn.classList.toggle("is-loading", isSaving);
+      if (isSaving) {
+        btn.innerHTML = `<span class="btn-spinner" aria-hidden="true"></span>${text || "처리 중..."}`;
+      } else {
+        btn.textContent = text || (document.getElementById("res-id")?.value ? "수정 저장" : "생성");
+      }
+    }
+
+    function roomRequiresApproval(roomId) {
+      const room = state.data?.rooms?.find(r => String(r.id) === String(roomId));
+      return !!room?.requires_approval;
+    }
+
+    async function fetchWithTimeout(url, options, timeoutMs = 20000) {
+      const controller = new AbortController();
+      const timer = setTimeout(() => controller.abort(), timeoutMs);
+      try {
+        return await fetch(url, { ...(options || {}), signal: controller.signal });
+      } finally {
+        clearTimeout(timer);
+      }
+    }
 
     function closeModal() { modal.close(); }
     function clearSelection() { document.querySelectorAll(".selected").forEach(el => el.classList.remove("selected")); }
@@ -1137,10 +1278,12 @@
       document.getElementById("repeat-row").style.display = "";
       document.getElementById("cancel-scope-row").style.display = "none";
       document.getElementById("new-pin-row").style.display = "none";
+      document.getElementById("series-end-row").style.display = "none";
       document.getElementById("btn-cancel").style.display = "none";
-      document.getElementById("btn-save").textContent = "생성";
+      state.savingReservation = false;
+      setSaveButtonState(false, "생성");
       document.getElementById("modal-title").textContent = "예약 생성";
-      document.getElementById("modal-hint").textContent = "수정/취소 PIN(4자리)은 생성 시 필수입니다.";
+      setModalHint("수정/취소 PIN(4자리)은 생성 시 필수입니다.");
     }
 
     function setModalModeEdit() {
@@ -1149,13 +1292,20 @@
       document.getElementById("cancel-scope-row").style.display = "";
       document.getElementById("pin-row").style.display = "";
       document.getElementById("new-pin-row").style.display = "";
+      document.getElementById("series-end-row").style.display = "none";
       document.getElementById("btn-cancel").style.display = "";
-      document.getElementById("btn-save").textContent = "수정 저장";
+      state.savingReservation = false;
+      setSaveButtonState(false, "수정 저장");
       document.getElementById("modal-title").textContent = "예약 수정/취소";
-      document.getElementById("modal-hint").textContent =
-        "수정/취소 PIN(4자리)은 필수입니다.";
-      document.getElementById("modal-hint").textContent =
-        "수정/취소 PIN(4자리)은 필수입니다.";
+      setModalHint("수정/취소 PIN(4자리)은 필수입니다.");
+    }
+
+    function syncSeriesScopeUi() {
+      const scope = document.querySelector('input[name="cancel-scope"]:checked')?.value || "single";
+      const seriesEndRow = document.getElementById("series-end-row");
+      if (seriesEndRow) {
+        seriesEndRow.style.display = scope === "series" ? "" : "none";
+      }
     }
 
     function openRoomDetail(room) {
@@ -1228,15 +1378,13 @@
 
         document.getElementById("title").value = "";
         document.getElementById("email").value = "";
+        document.getElementById("phone").value = "";
         document.getElementById("note").value = "";
         document.getElementById("pin").value = "";
         document.getElementById("new-pin").value = "";
 
-        // Reset color to default
-        document.querySelectorAll('.color-option').forEach(el => el.classList.remove('selected'));
-        const defaultColor = "#e3f2fd";
-        document.querySelector(`.color-option[data-color="${defaultColor}"]`)?.classList.add('selected');
-        document.getElementById('selected-color').value = defaultColor;
+        state.autoColorManuallySelected = false;
+        applyAutoColorFromTitle("");
 
         // repeat defaults
         const repType = document.getElementById("repeat-type");
@@ -1302,28 +1450,37 @@
 
       document.getElementById("title").value = r.title || "";
       document.getElementById("email").value = r.email || "";
+      document.getElementById("phone").value = r.phone || "";
       document.getElementById("note").value = r.note_internal || "";
       document.getElementById("pin").value = "";
       document.getElementById("new-pin").value = "";
+      state.autoColorManuallySelected = true;
 
       // set color
-      document.querySelectorAll('.color-option').forEach(el => el.classList.remove('selected'));
       const rColor = r.color || "#e3f2fd";
-      let opt = document.querySelector(`.color-option[data-color="${rColor}"]`);
-      if (!opt) opt = document.querySelector('.color-option'); // fallback to first
-      if (opt) opt.classList.add('selected');
-      document.getElementById('selected-color').value = rColor;
+      setSelectedColor(rColor);
 
       // cancel scope UI
       const scopeRow = document.getElementById("cancel-scope-row");
       const endInfo = document.getElementById("series-end-info");
+      const seriesEndRow = document.getElementById("series-end-row");
+      const seriesEndDate = document.getElementById("series-end-date");
       if (scopeRow) scopeRow.style.display = "";
+      document.querySelectorAll('input[name="cancel-scope"]').forEach(el => {
+        el.onchange = syncSeriesScopeUi;
+      });
       
       // if server provides series/group id, enable series option; otherwise still show but warn via hint
       const seriesRadio = scopeRow ? scopeRow.querySelector('input[value="series"]') : null;
-      if (seriesRadio) seriesRadio.disabled = !(r.series_id || r.group_id || r.repeat_id);
+      const hasSeries = !!(r.series_id || r.group_id || r.repeat_id);
+      if (seriesRadio) seriesRadio.disabled = !hasSeries;
       const singleRadio = scopeRow ? scopeRow.querySelector('input[value="single"]') : null;
-      if (singleRadio) singleRadio.checked = true;
+      if (hasSeries && seriesRadio) {
+        seriesRadio.checked = true;
+      } else if (singleRadio) {
+        singleRadio.checked = true;
+      }
+      if (seriesEndDate) seriesEndDate.value = r.series_end_at || "";
       
       if (endInfo) {
         if (r.series_id && r.series_end_at) {
@@ -1336,6 +1493,7 @@
       }
 
       setModalModeEdit();
+      syncSeriesScopeUi();
       updateEndPreview_();
       rebuildEndPickerFromStart_();
       modal.showModal();
@@ -1488,6 +1646,7 @@
           if (dateInput) {
             dateInput.value = dateStr;
           }
+          syncSelectedDateToUrl();
           renderSelectedDateBadge();
           updateCollapsedView();
           buildTime30Datalist();
@@ -1516,7 +1675,9 @@
     async function load() {
       hideCreateBar();
       clearSelection();
-      const res = await fetch(`/api/office/grid?date=${encodeURIComponent(getSelectedDate())}`);
+      const selectedDate = getSelectedDate();
+      syncSelectedDateToUrl();
+      const res = await fetch(`/api/office/grid?date=${encodeURIComponent(selectedDate)}`);
       if (!res.ok) {
         const t = await res.text();
         throw new Error(`Grid API failed: HTTP ${res.status} ${t.slice(0, 200)}`);
@@ -1715,16 +1876,20 @@
 
         for (let i = si; i < endIdx; i++) {
           cells[i].classList.add(...finalCls.split(" "));
-          if (resId && item.color) {
-            cells[i].style.backgroundColor = item.color;
-            cells[i].style.borderColor = 'rgba(0,0,0,0.1)';
-          }
           if (resId) {
             cells[i].dataset.resId = resId;
             if (i === si) cells[i].dataset.edgeStart = "1";
             if (i === endIdx - 1) cells[i].dataset.edgeEnd = "1";
           }
-          if (i === si && finalText) cells[i].textContent = finalText;
+          if (i === si && finalText) {
+            const label = document.createElement("span");
+            label.className = "range-label";
+            if (finalCls.includes("pending")) label.classList.add("pending");
+            label.style.setProperty("--range-slots", String(Math.max(1, endIdx - si)));
+            label.style.setProperty("--range-bg", item.color || (finalCls.includes("blocked") ? "#fff3f3" : "#e3f2fd"));
+            label.textContent = finalText;
+            cells[i].appendChild(label);
+          }
         }
       }
 
@@ -2146,6 +2311,7 @@
 
 
     async function saveReservation() {
+      if (state.savingReservation) return;
       try {
         const resId = document.getElementById("res-id").value;
         const roomIdRaw = document.getElementById("room-id").value;
@@ -2167,28 +2333,34 @@
 
         const title = document.getElementById("title").value;
         const email = document.getElementById("email").value;
+        const phone = document.getElementById("phone").value;
         const note = document.getElementById("note").value;
-        const color = document.getElementById("selected-color").value;
+        let color = document.getElementById("selected-color").value;
         const pin = document.getElementById("pin").value;
 
         if (!title.trim()) {
-          alert("단체명을 입력해 주세요.");
+          alert("예약명을 입력해 주세요.");
           return;
         }
 
-        if (!email.trim()) {
-          alert("신청자 이메일을 입력해 주세요.");
-          return;
-        }
-
-        // Simple email validation
-        if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim())) {
+        // Simple email validation, only when provided.
+        if (email.trim() && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim())) {
           alert("올바른 이메일 형식을 입력해 주세요.");
+          return;
+        }
+
+        if (!phone.trim()) {
+          alert("신청자 전화번호를 입력해 주세요.");
           return;
         }
 
         if (!resId) {
           // CREATE
+          if (!state.autoColorManuallySelected) {
+            applyAutoColorFromTitle(title);
+            color = document.getElementById("selected-color").value;
+          }
+
           if (!/^\d{4}$/.test(pin)) {
             alert("수정/취소 PIN(비번)은 숫자 4자리입니다.");
             return;
@@ -2206,7 +2378,8 @@
             note_internal: note,
             color,
             cancel_pin: pin,
-            email: email
+            email: email,
+            phone: phone
           };
 
           if (repeatEnabled) {
@@ -2247,7 +2420,11 @@
             }
           }
 
-          const resp = await fetch("/api/office/reservations", {
+          state.savingReservation = true;
+          setSaveButtonState(true, "예약 생성 중...");
+          setModalHint(roomRequiresApproval(roomId) ? "예약 승인 요청을 보내는 중입니다..." : "예약을 저장하는 중입니다...", "#1f2937");
+
+          const resp = await fetchWithTimeout("/api/office/reservations", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify(createPayload)
@@ -2260,10 +2437,15 @@
 
           if (!resp.ok || !out || out.ok === false) {
             const msg = (out && out.error) ? out.error : "저장 실패";
+            state.savingReservation = false;
+            setSaveButtonState(false, "생성");
+            setModalHint(msg, "#b00020");
             alert(`${msg}\nHTTP ${resp.status}`);
             return;
           }
 
+          setSaveButtonState(false, roomRequiresApproval(roomId) ? "승인 대기 중" : "저장 완료");
+          setModalHint(roomRequiresApproval(roomId) ? "예약 승인 대기 중입니다. 화면에 [대기중]으로 표시됩니다." : "예약이 저장되었습니다. 화면을 새로고침합니다.", "#1f7a3a");
           closeModal(); await load(); clearSelection(); return;
 
         } else {
@@ -2280,6 +2462,7 @@
           }
 
           const scope = (document.querySelector('input[name="cancel-scope"]:checked')?.value || "single");
+          const seriesEndDateValue = (scope === "series") ? String(document.getElementById("series-end-date")?.value || "").trim() : "";
           const editPayload = {
             room_id: roomId,
             start_at: startAt,
@@ -2289,14 +2472,20 @@
             color,
             cancel_pin: pin,
             scope: scope,
-            email: email
+            email: email,
+            phone: phone
           };
           if (newPin) editPayload["new_cancel_pin"] = newPin;
+          if (scope === "series" && seriesEndDateValue) editPayload["series_repeat_until"] = seriesEndDateValue;
 
           const r = state.currentEdit || state.resById[resId];
           if (r && r.series_id) editPayload["series_id"] = r.series_id;
 
-          const resp = await fetch(`/api/office/reservations/${encodeURIComponent(resId)}`, {
+          state.savingReservation = true;
+          setSaveButtonState(true, "수정 저장 중...");
+          setModalHint(roomRequiresApproval(roomId) ? "변경 승인 요청을 보내는 중입니다..." : "변경 사항을 저장하는 중입니다...", "#1f2937");
+
+          const resp = await fetchWithTimeout(`/api/office/reservations/${encodeURIComponent(resId)}`, {
             method: "PATCH",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify(editPayload)
@@ -2308,7 +2497,11 @@
           catch (e) { out = { ok: false, error: "Invalid JSON" }; }
 
           if (!resp.ok || !out || out.ok === false) {
-            alert("수정 실패: " + (out ? out.error : "Unknown error"));
+            const msg = "수정 실패: " + (out ? out.error : "Unknown error");
+            state.savingReservation = false;
+            setSaveButtonState(false, "수정 저장");
+            setModalHint(msg, "#b00020");
+            alert(msg);
             return;
           }
 
@@ -2325,6 +2518,7 @@
                   existing.end_at = u.end_at;
                   existing.title = u.title;
                   existing.note_internal = u.note_internal || existing.note_internal;
+                  existing.phone = u.phone || existing.phone;
                   existing.color = u.color || existing.color;
                   state.resById[id] = existing;
                   const idx = state.data.reservations.findIndex(rr => String(rr.id) === id);
@@ -2335,12 +2529,21 @@
             }
           } catch (e) { console.warn("series client-side apply failed:", e); }
 
+          setSaveButtonState(false, roomRequiresApproval(roomId) ? "변경 승인 대기 중" : "저장 완료");
+          setModalHint(roomRequiresApproval(roomId) ? "변경 승인 대기 중입니다. 화면에 [대기중]으로 표시됩니다." : "변경 사항이 저장되었습니다. 화면을 새로고침합니다.", "#1f7a3a");
           closeModal(); await load(); clearSelection(); return;
         }
 
       } catch (err) {
         console.error("[saveReservation] unexpected error:", err);
-        alert("저장 중 예상치 못한 오류가 발생했습니다: " + err.message);
+        state.savingReservation = false;
+        setSaveButtonState(false);
+        const timedOut = err && err.name === "AbortError";
+        const msg = timedOut
+          ? "서버 응답이 지연되고 있습니다. 저장이 처리됐을 수도 있으니 새로고침 후 확인해 주세요."
+          : "저장 중 오류가 발생했습니다. 내용을 확인한 뒤 다시 시도해 주세요.";
+        setModalHint(msg, "#b00020");
+        alert(timedOut ? msg : "저장 중 예상치 못한 오류가 발생했습니다: " + err.message);
       }
     }
 
@@ -2357,10 +2560,12 @@
       const scopeLabel = (scope === "series") ? "전체 반복 예약" : "현재 예약";
       if (!confirm(`정말 취소할까요?\n(범위: ${scopeLabel})`)) return;
 
+      const seriesEndDateValue = (scope === "series") ? String(document.getElementById("series-end-date")?.value || "").trim() : "";
       const payload = { cancel_pin: pin, scope };
 
       // If backend supports grouping, pass any group id we have (optional)
       const r = state.currentEdit || state.resById[resId];
+      if (scope === "series" && seriesEndDateValue) payload["series_repeat_until"] = seriesEndDateValue;
       if (scope === "series" && r) {
         if (r.series_id) payload["series_id"] = r.series_id;
         if (r.group_id) payload["group_id"] = r.group_id;
@@ -2378,12 +2583,6 @@
     }
 
     ensureDateInputDefault();
-
-
-    load().catch(err => {
-      console.error(err);
-      alert("데이터를 불러오지 못했습니다.");
-    });
 
     // === UI helpers: selected date badge + Today button ===
     function formatSelectedDateKo(dStr) {
@@ -2411,6 +2610,7 @@
     async function goToday() {
       const el = document.getElementById("date") || document.querySelector('input[type="date"][name="date"]');
       if (el) el.value = todayStr();
+      syncSelectedDateToUrl();
 
       // Update calendar view to today
       calendarViewDate = new Date();
@@ -2441,6 +2641,7 @@
       const da = String(d.getDate()).padStart(2, "0");
       const newDateStr = `${y}-${m}-${da}`;
       el.value = newDateStr;
+      syncSelectedDateToUrl();
 
       // Update calendar view to match new date
       calendarViewDate = new Date(d);
@@ -2588,9 +2789,15 @@
 
       document.getElementById('color-picker')?.addEventListener('click', (e) => {
         if (e.target.classList.contains('color-option')) {
-          document.querySelectorAll('.color-option').forEach(el => el.classList.remove('selected'));
-          e.target.classList.add('selected');
-          document.getElementById('selected-color').value = e.target.dataset.color;
+          state.autoColorManuallySelected = true;
+          setSelectedColor(e.target.dataset.color);
+        }
+      });
+
+      document.getElementById('title')?.addEventListener('input', (e) => {
+        const resId = document.getElementById("res-id")?.value || "";
+        if (!resId && !state.autoColorManuallySelected) {
+          applyAutoColorFromTitle(e.target.value);
         }
       });
 
@@ -2601,6 +2808,7 @@
           buildTime30Datalist();
           // Update calendar view to show the selected date's month
           const selectedDate = getSelectedDate();
+          syncSelectedDateToUrl();
           const [year, month, day] = selectedDate.split("-");
           calendarViewDate = new Date(parseInt(year), parseInt(month) - 1, parseInt(day));
           renderCalendar();
@@ -2786,38 +2994,94 @@
             <meta charset="utf-8">
             <title>교리실 위치 지도</title>
             <style>
-              body { margin: 0; padding: 0; display: flex; flex-direction: column; align-items: center; background: #eef2f5; overflow: auto; min-height: 100vh; font-family: sans-serif; }
+              html, body { width: 100%; height: 100%; }
+              body { margin: 0; padding: 0; background: #eef2f5; overflow: hidden; font-family: sans-serif; }
               .toolbar { position: fixed; top: 15px; right: 15px; background: rgba(255, 255, 255, 0.95); padding: 10px 15px; border-radius: 8px; box-shadow: 0 4px 15px rgba(0,0,0,0.1); z-index: 1000; backdrop-filter: blur(5px); }
               .toolbar button { margin: 0 4px; padding: 8px 14px; font-size: 14px; font-weight: 600; cursor: pointer; border: 1px solid #d1d5db; border-radius: 6px; background: #fff; color: #374151; transition: all 0.2s; }
               .toolbar button:hover { background: #f3f4f6; border-color: #9ca3af; }
               .toolbar button.close-btn { color: #dc2626; border-color: #fca5a5; }
               .toolbar button.close-btn:hover { background: #fef2f2; border-color: #ef4444; }
-              .img-container { margin-top: 80px; padding: 20px; transition: transform 0.2s cubic-bezier(0.4, 0, 0.2, 1); transform-origin: top center; }
-              img { max-width: none; border-radius: 8px; box-shadow: 0 8px 24px rgba(0,0,0,0.15); }
+              .map-stage { width: 100vw; height: 100vh; box-sizing: border-box; padding: 76px 16px 16px; display: flex; align-items: center; justify-content: center; overflow: hidden; user-select: none; cursor: default; }
+              .map-stage.zoomed { cursor: grab; }
+              .map-stage.dragging { cursor: grabbing; }
+              .img-container { display: flex; align-items: center; justify-content: center; transition: transform 0.2s cubic-bezier(0.4, 0, 0.2, 1); transform-origin: center center; }
+              .map-stage.dragging .img-container { transition: none; }
+              img { max-width: calc(100vw - 32px); max-height: calc(100vh - 92px); width: auto; height: auto; object-fit: contain; border-radius: 8px; box-shadow: 0 8px 24px rgba(0,0,0,0.15); pointer-events: none; }
             </style>
           </head>
           <body>
             <div class="toolbar">
               <button onclick="zoom(0.2)">확대 (+)</button>
               <button onclick="zoom(-0.2)">축소 (-)</button>
-              <button onclick="resetZoom()">원래대로</button>
+              <button onclick="resetZoom()">창에 맞춤</button>
               <button class="close-btn" onclick="window.close()">닫기 ✕</button>
             </div>
-            <div class="img-container" id="img-container">
-              <img src="${url}" alt="교리실 위치 지도" />
+            <div class="map-stage" id="map-stage">
+              <div class="img-container" id="img-container">
+                <img src="${url}" alt="교리실 위치 지도" draggable="false" />
+              </div>
             </div>
             <script>
+              const stage = document.getElementById('map-stage');
+              const imageContainer = document.getElementById('img-container');
               let scale = 1;
+              let offsetX = 0;
+              let offsetY = 0;
+              let isDragging = false;
+              let dragStartX = 0;
+              let dragStartY = 0;
+              let dragBaseX = 0;
+              let dragBaseY = 0;
+
+              function applyTransform() {
+                imageContainer.style.transform = 'translate(' + offsetX + 'px, ' + offsetY + 'px) scale(' + scale + ')';
+                stage.classList.toggle('zoomed', scale > 1);
+              }
+
               function zoom(delta) {
                 scale += delta;
                 if(scale < 0.2) scale = 0.2;
                 if(scale > 4) scale = 4;
-                document.getElementById('img-container').style.transform = 'scale(' + scale + ')';
+                if(scale <= 1) {
+                  offsetX = 0;
+                  offsetY = 0;
+                }
+                applyTransform();
               }
               function resetZoom() {
                 scale = 1;
-                document.getElementById('img-container').style.transform = 'scale(1)';
+                offsetX = 0;
+                offsetY = 0;
+                applyTransform();
               }
+              stage.addEventListener('pointerdown', function(e) {
+                if(scale <= 1 || e.button !== 0) return;
+                isDragging = true;
+                dragStartX = e.clientX;
+                dragStartY = e.clientY;
+                dragBaseX = offsetX;
+                dragBaseY = offsetY;
+                stage.classList.add('dragging');
+                stage.setPointerCapture(e.pointerId);
+              });
+              stage.addEventListener('pointermove', function(e) {
+                if(!isDragging) return;
+                offsetX = dragBaseX + e.clientX - dragStartX;
+                offsetY = dragBaseY + e.clientY - dragStartY;
+                applyTransform();
+              });
+              function stopDrag(e) {
+                if(!isDragging) return;
+                isDragging = false;
+                stage.classList.remove('dragging');
+                if(stage.hasPointerCapture(e.pointerId)) {
+                  stage.releasePointerCapture(e.pointerId);
+                }
+              }
+              stage.addEventListener('pointerup', stopDrag);
+              stage.addEventListener('pointercancel', stopDrag);
+              window.addEventListener('resize', resetZoom);
+              applyTransform();
             <\/script>
           </body>
           </html>

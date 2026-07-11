@@ -12,9 +12,27 @@
     th, td { border:1px solid #e5e5e5; padding: 6px; font-size: 12px; }
     th { position: sticky; top: 0; background: #fafafa; z-index: 2; }
     td.room { position: sticky; left: 0; background: #fff; z-index: 1; min-width: 140px; }
-    .cell { height: 34px; min-width: 60px; }
-    .busy { background: #f3f3ff; }
-    .blocked { background: #fff3f3; }
+    .cell { height: 34px; min-width: 60px; position: relative; overflow: visible; }
+    .range-label {
+      position: absolute;
+      inset: 4px auto 4px 4px;
+      width: calc((var(--range-slots, 1) * 100%) - 8px);
+      z-index: 2;
+      pointer-events: none;
+      display: flex;
+      align-items: center;
+      padding: 0 8px;
+      border: 1px solid rgba(31, 41, 55, 0.28);
+      border-radius: 6px;
+      background: var(--range-bg, rgba(243, 243, 255, 0.96));
+      box-shadow: 0 1px 2px rgba(15, 23, 42, 0.08);
+      font-weight: 600;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+    .busy { background: transparent; }
+    .blocked { background: transparent; }
     .label { font-weight: 600; }
     .muted { color:#666; font-size: 12px; }
     .pill { display:inline-block; padding: 2px 6px; border-radius: 999px; background:#eee; font-size: 12px; }
@@ -126,7 +144,14 @@
 
           for (let i=si; i<endIdx; i++){
             cells[i].classList.add(cls);
-            if (i === si && text) cells[i].textContent = text;
+            if (i === si && text) {
+              const label = document.createElement("span");
+              label.className = "range-label";
+              label.style.setProperty("--range-slots", String(Math.max(1, endIdx - si)));
+              label.style.setProperty("--range-bg", cls === "blocked" ? "#fff3f3" : "#f3f3ff");
+              label.textContent = text;
+              cells[i].appendChild(label);
+            }
           }
         }
 
@@ -145,4 +170,3 @@
   </script>
 </body>
 </html>
-

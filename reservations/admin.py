@@ -216,11 +216,15 @@ class ReservationAdmin(admin.ModelAdmin):
     def approve_series_view(self, request, series_id):
         qs = Reservation.objects.filter(series_id=series_id, status=Reservation.STATUS_PENDING)
         count = 0
+        approved_items = []
         for r in qs:
             r.status = Reservation.STATUS_CONFIRMED
             r.save(update_fields=["status", "updated_at"])
-            send_reservation_status_email(r, 'confirmed')
+            approved_items.append(r)
             count += 1
+
+        if approved_items:
+            send_reservation_status_email(approved_items, 'confirmed')
 
         if count:
             self.message_user(request, f"시리즈 전체 {count}건을 승인했습니다.", level=messages.SUCCESS)
@@ -238,11 +242,15 @@ class ReservationAdmin(admin.ModelAdmin):
             status__in=[Reservation.STATUS_CONFIRMED, Reservation.STATUS_PENDING],
         )
         count = 0
+        rejected_items = []
         for r in qs:
             r.status = Reservation.STATUS_CANCELLED
             r.save(update_fields=["status", "updated_at"])
-            send_reservation_status_email(r, 'cancelled')
+            rejected_items.append(r)
             count += 1
+
+        if rejected_items:
+            send_reservation_status_email(rejected_items, 'cancelled')
 
         if count:
             self.message_user(request, f"시리즈 전체 {count}건을 거절/취소했습니다.", level=messages.SUCCESS)
@@ -263,19 +271,25 @@ class ReservationAdmin(admin.ModelAdmin):
                 qs = Reservation.objects.filter(pk__in=selected_ids, series_id=series_id)
                 count = 0
                 if action == "approve_selected":
+                    approved_items = []
                     for r in qs.filter(status=Reservation.STATUS_PENDING):
                         r.status = Reservation.STATUS_CONFIRMED
                         r.save(update_fields=["status", "updated_at"])
-                        send_reservation_status_email(r, 'confirmed')
+                        approved_items.append(r)
                         count += 1
+                    if approved_items:
+                        send_reservation_status_email(approved_items, 'confirmed')
                     self.message_user(request, f"선택한 항목 {count}건을 승인했습니다.", level=messages.SUCCESS)
                 
                 elif action == "reject_selected":
+                    rejected_items = []
                     for r in qs.filter(status__in=[Reservation.STATUS_CONFIRMED, Reservation.STATUS_PENDING]):
                         r.status = Reservation.STATUS_CANCELLED
                         r.save(update_fields=["status", "updated_at"])
-                        send_reservation_status_email(r, 'cancelled')
+                        rejected_items.append(r)
                         count += 1
+                    if rejected_items:
+                        send_reservation_status_email(rejected_items, 'cancelled')
                     self.message_user(request, f"선택한 항목 {count}건을 거절/취소했습니다.", level=messages.SUCCESS)
                     
             return HttpResponseRedirect(request.path)
@@ -324,22 +338,28 @@ class ReservationAdmin(admin.ModelAdmin):
     def approve_reservations(self, request, queryset):
         pending_qs = queryset.filter(status=Reservation.STATUS_PENDING)
         updated = 0
+        approved_items = []
         for r in pending_qs:
             r.status = Reservation.STATUS_CONFIRMED
             r.save(update_fields=["status", "updated_at"])
             updated += 1
-            send_reservation_status_email(r, 'confirmed')
+            approved_items.append(r)
+        if approved_items:
+            send_reservation_status_email(approved_items, 'confirmed')
         self.message_user(request, f"{updated}개의 예약을 승인했습니다.")
 
     @admin.action(description="선택한 예약을 거절/취소(Cancelled) 처리합니다")
     def reject_reservations(self, request, queryset):
         active_qs = queryset.filter(status__in=[Reservation.STATUS_CONFIRMED, Reservation.STATUS_PENDING])
         updated = 0
+        rejected_items = []
         for r in active_qs:
             r.status = Reservation.STATUS_CANCELLED
             r.save(update_fields=["status", "updated_at"])
             updated += 1
-            send_reservation_status_email(r, 'cancelled')
+            rejected_items.append(r)
+        if rejected_items:
+            send_reservation_status_email(rejected_items, 'cancelled')
         self.message_user(request, f"{updated}개의 예약을 거절/취소 처리했습니다.")
 
     @admin.action(description="선택한 예약의 시리즈 전체를 승인합니다")
@@ -352,11 +372,14 @@ class ReservationAdmin(admin.ModelAdmin):
             self.message_user(request, "선택된 항목 중 시리즈 예약이 없습니다.", level=messages.WARNING)
             return
         updated = 0
+        approved_items = []
         for r in Reservation.objects.filter(series_id__in=series_ids, status=Reservation.STATUS_PENDING):
             r.status = Reservation.STATUS_CONFIRMED
             r.save(update_fields=["status", "updated_at"])
-            send_reservation_status_email(r, 'confirmed')
+            approved_items.append(r)
             updated += 1
+        if approved_items:
+            send_reservation_status_email(approved_items, 'confirmed')
         self.message_user(
             request,
             f"{len(series_ids)}개 시리즈, 총 {updated}건을 승인했습니다.",
@@ -372,14 +395,17 @@ class ReservationAdmin(admin.ModelAdmin):
             self.message_user(request, "선택된 항목 중 시리즈 예약이 없습니다.", level=messages.WARNING)
             return
         updated = 0
+        rejected_items = []
         for r in Reservation.objects.filter(
             series_id__in=series_ids,
             status__in=[Reservation.STATUS_CONFIRMED, Reservation.STATUS_PENDING],
         ):
             r.status = Reservation.STATUS_CANCELLED
             r.save(update_fields=["status", "updated_at"])
-            send_reservation_status_email(r, 'cancelled')
+            rejected_items.append(r)
             updated += 1
+        if rejected_items:
+            send_reservation_status_email(rejected_items, 'cancelled')
         self.message_user(
             request,
             f"{len(series_ids)}개 시리즈, 총 {updated}건을 거절/취소했습니다.",
@@ -416,8 +442,9 @@ class ReservationAdmin(admin.ModelAdmin):
         super().delete_model(request, obj)
 
     def delete_queryset(self, request, queryset):
-        for obj in queryset:
-            send_reservation_status_email(obj, 'cancelled')
+        deleted_items = list(queryset)
+        if deleted_items:
+            send_reservation_status_email(deleted_items, 'cancelled')
         super().delete_queryset(request, queryset)
 
 

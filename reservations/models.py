@@ -110,6 +110,7 @@ class Reservation(models.Model):
     # Recurrence grouping (nullable for one-off reservations)
     # If set, all reservations with the same series_id are treated as one repeating series.
     series_id = models.UUIDField(null=True, blank=True, db_index=True)
+    series_repeat_until = models.DateField(null=True, blank=True, verbose_name="반복 종료일")
 
     # Cancel brute-force protection
     cancel_fail_count = models.PositiveIntegerField(default=0)
@@ -118,8 +119,9 @@ class Reservation(models.Model):
     # Color of the reservation block (CSS hex/color)
     color = models.CharField(max_length=20, default="#e3f2fd")
 
-    # Requester's email for notifications (required)
-    email = models.EmailField(max_length=254, blank=False, null=False, verbose_name="신청자 이메일")
+    # Optional requester email. Email notifications are disabled by default.
+    email = models.EmailField(max_length=254, blank=True, null=True, verbose_name="신청자 이메일")
+    phone = models.CharField(max_length=40, default="", verbose_name="신청자 전화번호")
 
     class Meta:
         indexes = [
@@ -220,4 +222,3 @@ class AuditLog(models.Model):
 
     def __str__(self) -> str:
         return f"{self.at} {self.actor_type}:{self.actor_label} {self.action}"
-

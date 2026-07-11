@@ -38,8 +38,22 @@ pip install -r requirements.txt
 ### 4. 데이터베이스(PostgreSQL) 생성
 이 프로젝트는 PostgreSQL 데이터베이스를 사용합니다. 데이터베이스와 사용자를 생성해야 합니다.
 
-1. PostgreSQL 클라이언트(`psql`) 또는 pgAdmin 등을 사용하여 데이터베이스 서버에 접속합니다.
-2. 아래 SQL 명령어를 실행하여 데이터베이스와 사용자를 생성하고 권한을 부여합니다.
+1. PostgreSQL 서버가 실행 중인지 먼저 확인합니다.
+   - Windows: 서비스 목록에서 PostgreSQL 서비스가 실행 중인지 확인합니다.
+   - Linux/macOS: `sudo systemctl status postgresql` 또는 `brew services list` 등의 명령으로 상태를 확인합니다.
+2. 접속 방법은 두 가지가 있습니다.
+   - `psql` CLI 사용: 터미널에서 아래와 같이 접속합니다.
+     ```bash
+     psql -U postgres
+     ```
+     접속 후 비밀번호를 입력하고, 데이터베이스를 생성합니다.
+   - pgAdmin 사용: pgAdmin을 실행한 뒤, "Servers" → "Add New Server"로 PostgreSQL 서버를 등록합니다.
+     - Host name/address: `127.0.0.1`
+     - Port: `5432`
+     - Maintenance database: `postgres`
+     - Username: `postgres`
+     - Password: 설치 시 설정한 비밀번호
+3. 아래 SQL 명령어를 실행하여 데이터베이스와 사용자를 생성하고 권한을 부여합니다.
    ```sql
    -- 1. 데이터베이스 생성
    CREATE DATABASE catechism_db;
@@ -95,6 +109,129 @@ python manage.py migrate
 python manage.py createsuperuser
 ```
 
+### 데이터베이스 접속 방법
+프로젝트는 PostgreSQL을 사용하므로, 아래 두 가지 방법으로 데이터베이스에 접속할 수 있습니다.
+
+#### 1) PostgreSQL CLI로 접속
+```bash
+psql -U catechism_user -d catechism_db -h 127.0.0.1
+```
+비밀번호를 입력하면 `psql` 셸에 들어갑니다.
+
+#### 데이터베이스 백업/복원
+아래 명령어로 데이터베이스를 백업하고 복원할 수 있습니다.
+
+##### PostgreSQL 백업/복원
+```bash
+# 백업
+pg_dump -U catechism_user -h 127.0.0.1 -d catechism_db -Fc -f catechism_db.backup
+
+# 복원
+pg_restore -U catechism_user -h 127.0.0.1 -d catechism_db catechism_db.backup
+```
+
+##### PostgreSQL 데이터를 다른 PC로 옮기기
+PostgreSQL은 `db.sqlite3`처럼 프로젝트 폴더 안의 파일 하나를 복사하는 방식이 아닙니다. 원본 PC에서 `pg_dump`로 백업 파일을 만들고, 대상 PC의 PostgreSQL에 `pg_restore`로 복원해야 합니다.
+
+1. 원본 PC에서 백업합니다.
+   ```bash
+   pg_dump -U catechism_user -h 127.0.0.1 -d catechism_db -Fc -f catechism_db.backup
+   ```
+2. `catechism_db.backup` 파일을 USB, 공유 폴더, SCP 등으로 대상 PC에 복사합니다.
+3. 대상 PC에서 Django/Gunicorn 등 DB에 접속 중인 서버를 멈춥니다.
+   ```bash
+   sudo systemctl stop catechism
+   # 서비스 이름이 다르면 catechism 대신 실제 서비스 이름을 사용합니다.
+   ```
+4. 대상 DB를 삭제하고 빈 DB를 다시 만듭니다. 이 단계는 기존 데이터를 지우므로, 필요하면 먼저 대상 PC의 DB를 별도로 백업하세요.
+   ```bash
+   dropdb -U catechism_user -h 127.0.0.1 catechism_db
+   sudo -u postgres createdb -O catechism_user catechism_db
+   ```
+   `catechism_user`에게 DB 생성 권한이 없으면 `createdb -U catechism_user ...` 명령은 `permission denied to create database`로 실패합니다. 그 경우 위처럼 `sudo -u postgres createdb -O catechism_user catechism_db`를 사용합니다.
+5. 복원합니다.
+   ```bash
+   pg_restore -U catechism_user -h 127.0.0.1 -d catechism_db catechism_db.backup
+   ```
+6. 복원 후 데이터 개수를 확인합니다.
+   ```bash
+   python manage.py shell -c "from reservations.models import Room, Reservation; print(Room.objects.count(), Reservation.objects.count())"
+   ```
+7. 서버를 다시 시작합니다.
+   ```bash
+   sudo systemctl start catechism
+   ```
+
+##### `pg_restore` 중복 키 오류 해결
+복원 중 아래와 같은 오류가 나오면, 빈 DB가 아닌 곳에 백업을 다시 복원한 것입니다.
+
+```text
+ERROR: duplicate key value violates unique constraint
+Key (content_type_id, codename)=(1, add_logentry) already exists.
+Key (id)=(1) already exists.
+Key (name)=(C102) already exists.
+```
+
+이 경우 일부 테이블만 복원되고 일부는 실패할 수 있으므로, 대상 DB를 완전히 비운 뒤 다시 복원하는 것이 가장 안전합니다.
+
+```bash
+# DB를 사용 중인 웹 서버가 있다면 먼저 중지
+sudo systemctl stop catechism
+
+# DB 삭제
+dropdb -U catechism_user -h 127.0.0.1 catechism_db
+
+# catechism_user가 DB 생성 권한이 없을 때는 postgres 계정으로 생성
+sudo -u postgres createdb -O catechism_user catechism_db
+
+# 복원
+pg_restore -U catechism_user -h 127.0.0.1 -d catechism_db catechism_db.backup
+```
+
+`dropdb`가 `database "catechism_db" is being accessed by other users`로 실패하면 아직 DB에 접속 중인 세션이 있는 것입니다. 웹 서버를 멈추거나, 필요하면 PostgreSQL 관리자로 접속해 세션을 끊을 수 있습니다.
+
+```bash
+sudo -u postgres psql
+```
+
+```sql
+SELECT pg_terminate_backend(pid)
+FROM pg_stat_activity
+WHERE datname = 'catechism_db'
+  AND pid <> pg_backend_pid();
+
+\q
+```
+
+그 뒤 `dropdb`, `createdb`, `pg_restore`를 다시 실행합니다.
+
+##### SQLite 백업/복원 (로컬 개발 환경 기준)
+```bash
+# 백업
+copy db.sqlite3 db.sqlite3.bak
+# 또는 Linux/macOS: cp db.sqlite3 db.sqlite3.bak
+
+# 복원
+copy db.sqlite3.bak db.sqlite3
+# 또는 Linux/macOS: cp db.sqlite3.bak db.sqlite3
+```
+
+> 복원 전에는 Django 서버를 중지한 상태로 진행하는 것이 안전합니다.
+
+유용한 명령어:
+```sql
+\dt                -- 테이블 목록 확인
+\d reservations_room -- 특정 테이블 구조 확인
+SELECT * FROM reservations_room;  -- 데이터 조회
+\q                 -- 종료
+```
+
+#### 2) Django 관리 명령으로 접속
+Django 설정이 정상이라면 프로젝트 루트에서 아래 명령으로도 접속할 수 있습니다.
+```bash
+python manage.py dbshell
+```
+
 ---
 
 ## 실행 방법
@@ -116,6 +253,92 @@ python manage.py runserver 0.0.0.0:8000
 > [!NOTE]
 > * **방화벽 설정**: 외부 접속이 되지 않는 경우, 실행 중인 PC의 방화벽(Windows 방화벽 등)에서 `8000` 포트가 열려 있는지 확인하세요.
 > * **허용 호스트 설정 (`.env`)**: 외부 접속 시 Django가 요청을 거부하는 경우 `.env` 파일의 `ALLOWED_HOSTS` 값을 `*`로 설정하거나 실제 외부 IP 또는 도메인을 추가해 주어야 합니다. (현재 기본값은 `*`로 지정되어 있어 접속이 허용됩니다.)
+
+---
+
+## 부팅 시 자동 실행 설정 (Linux)
+리눅스 서버가 부팅될 때 Django 앱이 자동으로 실행되도록 하려면 `systemd` 서비스를 등록하면 됩니다.
+
+### 1. 서비스 파일 생성
+```bash
+sudo nano /etc/systemd/system/my-office-reservation.service
+```
+
+아래 내용을 넣습니다.
+```ini
+[Unit]
+Description=My Office Reservation Django App
+After=network.target
+
+[Service]
+User=kwlee
+WorkingDirectory=/srv/my-office-reservation
+Environment=PATH=/srv/my-office-reservation/.venv/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
+ExecStart=/srv/my-office-reservation/.venv/bin/python /srv/my-office-reservation/manage.py runserver 0.0.0.0:8000
+Restart=always
+
+[Install]
+WantedBy=multi-user.target
+```
+
+> `User=kwlee`는 실제 로그인 사용자명으로 바꿔주세요. 프로젝트 경로도 실제 위치에 맞게 수정하세요.
+
+### 2. 서비스 등록
+```bash
+sudo systemctl daemon-reload
+sudo systemctl enable my-office-reservation.service
+sudo systemctl start my-office-reservation.service
+```
+
+### 3. 상태 확인
+```bash
+sudo systemctl status my-office-reservation.service
+```
+
+### 4. 재시작/중지
+```bash
+sudo systemctl restart my-office-reservation.service
+sudo systemctl stop my-office-reservation.service
+```
+
+> `runserver`는 개발/테스트 용도입니다. 실제 운영 환경에서는 보통 `gunicorn` + `nginx` 조합을 권장합니다.
+
+---
+
+## 가상환경 초기화 방법
+가상환경이 꼬였거나 패키지 설치 상태를 깨끗하게 다시 시작하고 싶다면 아래 순서로 초기화하면 됩니다.
+
+### 1. 기존 가상환경 삭제
+* **Linux / macOS**:
+  ```bash
+  rm -rf .venv
+  ```
+* **Windows (PowerShell)**:
+  ```powershell
+  Remove-Item -Recurse -Force .venv
+  ```
+
+### 2. 새 가상환경 생성
+* **Linux / macOS**:
+  ```bash
+  python3 -m venv .venv
+  source .venv/bin/activate
+  ```
+* **Windows (PowerShell)**:
+  ```powershell
+  python -m venv .venv
+  .venv\Scripts\Activate.ps1
+  ```
+
+### 3. 의존성 재설치
+```bash
+pip install -r requirements.txt
+```
+
+### 4. 필요 시 pip 캐시 정리
+```bash
+pip cache purge
+```
 
 ---
 
@@ -155,5 +378,4 @@ python manage.py flush
    ```bash
    python manage.py createsuperuser
    ```
-
 

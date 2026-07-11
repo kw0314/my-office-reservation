@@ -24,6 +24,37 @@ def _our_dow(d: date) -> int:
     return (d.weekday() + 1) % 7
 
 
+def _coerce_date(value) -> date | None:
+    if value is None:
+        return None
+    if isinstance(value, datetime):
+        return value.date()
+    if isinstance(value, date):
+        return value
+    if isinstance(value, str):
+        text = value.strip()
+        if not text:
+            return None
+        try:
+            return datetime.strptime(text, "%Y-%m-%d").date()
+        except ValueError as exc:
+            raise ValidationError("Invalid date format.") from exc
+    raise ValidationError("Invalid date value.")
+
+
+def _apply_series_repeat_until(items, *, repeat_until) -> list:
+    normalized = _coerce_date(repeat_until)
+    if normalized is None:
+        return list(items)
+
+    for item in items:
+        item.series_repeat_until = normalized
+        item_local_date = timezone.localtime(item.start_at, TZ).date()
+        if item_local_date > normalized and item.status in [Reservation.STATUS_CONFIRMED, Reservation.STATUS_PENDING]:
+            item.status = Reservation.STATUS_CANCELLED
+    return list(items)
+
+
 def _intervals_overlap(a_start, a_end, b_start, b_end) -> bool:
     return a_start < b_end and a_end > b_start
 
@@ -138,7 +169,7 @@ def _generate_repeat_dates(
 def create_reservation(*, room: Room, start_at, end_at, title: str, note_internal: str,
                        cancel_pin: str, color: str = "#e3f2fd",
                        device: AccessDevice | None, ip: str | None,
-                       email: str | None = None,
+                       email: str | None = None, phone: str = "",
                        repeat_days: list[int] | None = None,
                        repeat_until: date | None = None,
                        repeat_interval: int = 1,
@@ -153,6 +184,11 @@ def create_reservation(*, room: Room, start_at, end_at, title: str, note_interna
     """
     title_s = title.strip()
     note_s = note_internal.strip()
+    phone_s = phone.strip()
+    if not title_s:
+        raise ValidationError("예약명을 입력해 주세요.")
+    if not phone_s:
+        raise ValidationError("신청자 전화번호를 입력해 주세요.")
     duration = end_at - start_at
 
     is_approval_required = room.requires_approval or "[승인필요]" in room.name
@@ -169,6 +205,7 @@ def create_reservation(*, room: Room, start_at, end_at, title: str, note_interna
             status=initial_status,
             created_by_device=device,
             email=email.strip() if email else None,
+            phone=phone_s,
         )
         r.set_cancel_pin(cancel_pin)
         r.full_clean()
@@ -277,7 +314,9 @@ def create_reservation(*, room: Room, start_at, end_at, title: str, note_interna
                 color=color,
                 created_by_device=device,
                 series_id=series_id,
+                series_repeat_until=repeat_until,
                 email=email.strip() if email else None,
+                phone=phone_s,
             )
         )
 
@@ -288,8 +327,7 @@ def create_reservation(*, room: Room, start_at, end_at, title: str, note_interna
 
     # Send email notifications for confirmed reservations in the series
     if initial_status == Reservation.STATUS_CONFIRMED:
-        for item in created:
-            send_reservation_status_email(item, 'confirmed')
+        send_reservation_status_email(created, 'confirmed')
 
     AuditLog.objects.create(
         actor_type=AuditLog.ACTOR_DEVICE if device else AuditLog.ACTOR_ADMIN,
@@ -317,7 +355,8 @@ def create_reservation(*, room: Room, start_at, end_at, title: str, note_interna
 @transaction.atomic
 def update_reservation(*, reservation_id, room: Room, start_at, end_at, title: str,
                        note_internal: str, color: str = None, new_cancel_pin: str | None,
-                       device: AccessDevice | None, ip: str | None, email: str | None = None):
+                       device: AccessDevice | None, ip: str | None, email: str | None = None,
+                       phone: str | None = None):
     r = Reservation.objects.select_for_update().get(id=reservation_id)
 
     if r.status not in [Reservation.STATUS_CONFIRMED, Reservation.STATUS_PENDING]:
@@ -326,12 +365,20 @@ def update_reservation(*, reservation_id, room: Room, start_at, end_at, title: s
     r.room = room
     r.start_at = start_at
     r.end_at = end_at
-    r.title = title.strip()
+    title_s = title.strip()
+    if not title_s:
+        raise ValidationError("예약명을 입력해 주세요.")
+
+    r.title = title_s
     r.note_internal = note_internal.strip()
+    if phone is not None and not phone.strip():
+        raise ValidationError("신청자 전화번호를 입력해 주세요.")
     if color:
         r.color = color
     if email is not None:
         r.email = email.strip() if email else None
+    if phone is not None:
+        r.phone = phone.strip()
 
     is_approval_required = room.requires_approval or "[승인필요]" in room.name
     if is_approval_required and r.status == Reservation.STATUS_CONFIRMED:
@@ -360,7 +407,7 @@ def update_reservation_series(*, reservation_id, series_id: str, room: Room | No
                               start_at=None, end_at=None,
                               title: str | None, note_internal: str | None, color: str | None = None,
                               new_cancel_pin: str | None, device: AccessDevice | None, ip: str | None,
-                              email: str | None = None):
+                              email: str | None = None, phone: str | None = None, series_repeat_until=None):
     """
     Update all reservations in a series (title, note, cancel pin, and optionally time).
     
@@ -433,6 +480,9 @@ def update_reservation_series(*, reservation_id, series_id: str, room: Room | No
                 if _intervals_overlap(s_new, e_new, rs, re):
                     raise ValidationError("Time overlaps with an existing reservation for series update.")
 
+    if series_repeat_until is not None:
+        _apply_series_repeat_until(items, repeat_until=series_repeat_until)
+
     # Apply updates to each instance
     updated = []
     new_duration = end_at - start_at if (end_at is not None and start_at is not None) else None
@@ -441,15 +491,25 @@ def update_reservation_series(*, reservation_id, series_id: str, room: Room | No
         if room is not None:
             r.room = room_to_use
         if title is not None:
-            r.title = title.strip()
+            title_s = title.strip()
+            if not title_s:
+                raise ValidationError("예약명을 입력해 주세요.")
+            r.title = title_s
         if note_internal is not None:
             r.note_internal = note_internal.strip()
+        if phone is not None and not phone.strip():
+            raise ValidationError("신청자 전화번호를 입력해 주세요.")
         if color is not None:
             r.color = color
         if email is not None:
             r.email = email.strip() if email else None
+        if phone is not None:
+            r.phone = phone.strip()
         if new_cancel_pin:
             r.set_cancel_pin(new_cancel_pin)
+
+        if series_repeat_until is not None:
+            r.series_repeat_until = _coerce_date(series_repeat_until)
 
         is_approval_required = room_to_use.requires_approval or "[승인필요]" in room_to_use.name
         if is_approval_required and r.status == Reservation.STATUS_CONFIRMED:
@@ -490,7 +550,7 @@ def update_reservation_series(*, reservation_id, series_id: str, room: Room | No
 
 @transaction.atomic
 def cancel_reservation(*, reservation_id, cancel_pin: str, device: AccessDevice | None, ip: str | None,
-                       scope: str = "single"):
+                       scope: str = "single", series_repeat_until=None):
     r = Reservation.objects.select_for_update().get(id=reservation_id)
 
     if r.status not in [Reservation.STATUS_CONFIRMED, Reservation.STATUS_PENDING]:
@@ -518,15 +578,24 @@ def cancel_reservation(*, reservation_id, cancel_pin: str, device: AccessDevice 
             )
         )
 
+    if series_repeat_until is not None and scope == "series" and r.series_id:
+        _apply_series_repeat_until(targets, repeat_until=series_repeat_until)
+
+    cancelled_targets = []
     for t in targets:
         if t.status not in [Reservation.STATUS_CONFIRMED, Reservation.STATUS_PENDING]:
             continue
         t.status = Reservation.STATUS_CANCELLED
         t.cancel_fail_count = 0
         t.cancel_locked_until = None
-        t.save(update_fields=["status", "cancel_fail_count", "cancel_locked_until", "updated_at"])
-        # Send cancellation email to requester
-        send_reservation_status_email(t, 'cancelled')
+        if scope == "series" and r.series_id and series_repeat_until is not None:
+            t.series_repeat_until = _coerce_date(series_repeat_until)
+        t.save(update_fields=["status", "cancel_fail_count", "cancel_locked_until", "updated_at", "series_repeat_until"])
+        cancelled_targets.append(t)
+        
+    # Send cancellation email to requester
+    if cancelled_targets:
+        send_reservation_status_email(cancelled_targets, 'cancelled')
 
     AuditLog.objects.create(
         actor_type=AuditLog.ACTOR_DEVICE if device else AuditLog.ACTOR_ADMIN,
