@@ -2994,25 +2994,29 @@
             <meta charset="utf-8">
             <title>교리실 위치 지도</title>
             <style>
-              body { margin: 0; padding: 0; display: flex; flex-direction: column; align-items: center; background: #eef2f5; overflow: auto; min-height: 100vh; font-family: sans-serif; }
+              html, body { width: 100%; height: 100%; }
+              body { margin: 0; padding: 0; background: #eef2f5; overflow: hidden; font-family: sans-serif; }
               .toolbar { position: fixed; top: 15px; right: 15px; background: rgba(255, 255, 255, 0.95); padding: 10px 15px; border-radius: 8px; box-shadow: 0 4px 15px rgba(0,0,0,0.1); z-index: 1000; backdrop-filter: blur(5px); }
               .toolbar button { margin: 0 4px; padding: 8px 14px; font-size: 14px; font-weight: 600; cursor: pointer; border: 1px solid #d1d5db; border-radius: 6px; background: #fff; color: #374151; transition: all 0.2s; }
               .toolbar button:hover { background: #f3f4f6; border-color: #9ca3af; }
               .toolbar button.close-btn { color: #dc2626; border-color: #fca5a5; }
               .toolbar button.close-btn:hover { background: #fef2f2; border-color: #ef4444; }
-              .img-container { margin-top: 80px; padding: 20px; transition: transform 0.2s cubic-bezier(0.4, 0, 0.2, 1); transform-origin: top center; }
-              img { max-width: none; border-radius: 8px; box-shadow: 0 8px 24px rgba(0,0,0,0.15); }
+              .map-stage { width: 100vw; height: 100vh; box-sizing: border-box; padding: 76px 16px 16px; display: flex; align-items: center; justify-content: center; overflow: auto; }
+              .img-container { display: flex; align-items: center; justify-content: center; transition: transform 0.2s cubic-bezier(0.4, 0, 0.2, 1); transform-origin: center center; }
+              img { max-width: calc(100vw - 32px); max-height: calc(100vh - 92px); width: auto; height: auto; object-fit: contain; border-radius: 8px; box-shadow: 0 8px 24px rgba(0,0,0,0.15); }
             </style>
           </head>
           <body>
             <div class="toolbar">
               <button onclick="zoom(0.2)">확대 (+)</button>
               <button onclick="zoom(-0.2)">축소 (-)</button>
-              <button onclick="resetZoom()">원래대로</button>
+              <button onclick="resetZoom()">창에 맞춤</button>
               <button class="close-btn" onclick="window.close()">닫기 ✕</button>
             </div>
-            <div class="img-container" id="img-container">
-              <img src="${url}" alt="교리실 위치 지도" />
+            <div class="map-stage">
+              <div class="img-container" id="img-container">
+                <img src="${url}" alt="교리실 위치 지도" />
+              </div>
             </div>
             <script>
               let scale = 1;
@@ -3026,6 +3030,7 @@
                 scale = 1;
                 document.getElementById('img-container').style.transform = 'scale(1)';
               }
+              window.addEventListener('resize', resetZoom);
             <\/script>
           </body>
           </html>
