@@ -1348,7 +1348,7 @@
             const div = document.createElement("div");
             div.style.padding = "8px 0";
             div.style.borderBottom = "1px solid #eee";
-            const titleText = (r.status === "pending") ? `[대기중] ${r.title}` : r.title;
+            const titleText = (r.status === "pending") ? `${trUi("[대기중]")} ${r.title}` : r.title;
             const titleColor = (r.status === "pending") ? "#888" : "#000";
             div.innerHTML = `
                <div style="font-weight:600;font-size:14px;">${s} ~ ${e}</div>
@@ -1895,7 +1895,7 @@
         let finalText = text;
         if (item.status === "pending") {
             finalCls += " pending";
-            if (finalText) finalText = "[대기중] " + finalText;
+            if (finalText) finalText = `${trUi("[대기중]")} ${finalText}`;
         }
 
         for (let i = si; i < endIdx; i++) {
