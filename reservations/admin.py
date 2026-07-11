@@ -146,17 +146,27 @@ class ReservationAdmin(admin.ModelAdmin):
             _("%(count)s건") % {"count": count},
         )
 
-    @admin.display(description=gettext_lazy("승인"))
+    @admin.display(description=gettext_lazy("관리"))
     def approve_button(self, obj):
         if obj.status == Reservation.STATUS_PENDING:
             if obj.series_id:
-                series_url = reverse("admin:reservations_reservation_approve_series", args=[obj.series_id])
+                approve_url = reverse("admin:reservations_reservation_approve_series", args=[obj.series_id])
+                reject_url = reverse("admin:reservations_reservation_reject_series", args=[obj.series_id])
                 return format_html(
+                    '<span style="display:flex;gap:6px;align-items:center;white-space:nowrap">'
                     '<a class="button" href="{}" style="font-size:12px;padding:4px 10px;'
                     'background:#7c3aed;color:#fff;border-radius:6px;text-decoration:none">'
-                    '{}</a>',
-                    series_url,
+                    '{}</a>'
+                    '<a class="button" href="{}" style="font-size:12px;padding:4px 10px;'
+                    'background:#dc2626;color:#fff;border-radius:6px;text-decoration:none" '
+                    'onclick="return confirm(\'{}\')">'
+                    '{}</a>'
+                    '</span>',
+                    approve_url,
                     _("시리즈 승인"),
+                    reject_url,
+                    _("시리즈 전체를 거절/취소합니다. 이 작업은 되돌릴 수 없습니다. 계속하시겠습니까?"),
+                    _("거절/취소"),
                 )
             single_url = reverse("admin:reservations_reservation_approve", args=[obj.pk])
             return format_html(
