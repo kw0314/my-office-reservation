@@ -185,6 +185,8 @@ def create_reservation(*, room: Room, start_at, end_at, title: str, note_interna
     title_s = title.strip()
     note_s = note_internal.strip()
     phone_s = phone.strip()
+    if not title_s:
+        raise ValidationError("예약명을 입력해 주세요.")
     if not phone_s:
         raise ValidationError("신청자 전화번호를 입력해 주세요.")
     duration = end_at - start_at
@@ -363,7 +365,11 @@ def update_reservation(*, reservation_id, room: Room, start_at, end_at, title: s
     r.room = room
     r.start_at = start_at
     r.end_at = end_at
-    r.title = title.strip()
+    title_s = title.strip()
+    if not title_s:
+        raise ValidationError("예약명을 입력해 주세요.")
+
+    r.title = title_s
     r.note_internal = note_internal.strip()
     if phone is not None and not phone.strip():
         raise ValidationError("신청자 전화번호를 입력해 주세요.")
@@ -485,7 +491,10 @@ def update_reservation_series(*, reservation_id, series_id: str, room: Room | No
         if room is not None:
             r.room = room_to_use
         if title is not None:
-            r.title = title.strip()
+            title_s = title.strip()
+            if not title_s:
+                raise ValidationError("예약명을 입력해 주세요.")
+            r.title = title_s
         if note_internal is not None:
             r.note_internal = note_internal.strip()
         if phone is not None and not phone.strip():

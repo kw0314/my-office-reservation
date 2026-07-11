@@ -993,8 +993,8 @@
     </div>
 
     <div class="row">
-      <label>단체명(공개)</label>
-      <input id="title" type="text" placeholder="예: 유스그룹" />
+      <label>예약명 <span style="color: red;">*</span></label>
+      <input id="title" type="text" placeholder="예: 유스그룹" required />
     </div>
     <div class="row">
       <label>신청자 이메일</label>
@@ -2339,7 +2339,7 @@
         const pin = document.getElementById("pin").value;
 
         if (!title.trim()) {
-          alert("단체명을 입력해 주세요.");
+          alert("예약명을 입력해 주세요.");
           return;
         }
 
