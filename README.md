@@ -15,6 +15,23 @@ git clone <repository_url>
 cd my-office-reservation
 ```
 
+Linux 서버의 `/srv` 경로에 배포용으로 복제하려면 `/srv`에 쓰기 권한이 필요합니다.
+
+```bash
+sudo git clone <repository_url> /srv/my-office-reservation
+sudo chown -R $USER:$USER /srv/my-office-reservation
+cd /srv/my-office-reservation
+```
+
+SSH 저장소(`git@github.com:...`)를 사용하는 경우 `sudo git clone`은 root 사용자의 SSH 키를 찾기 때문에 실패할 수 있습니다. 이때는 먼저 폴더를 만들고 현재 사용자에게 권한을 준 뒤, 일반 사용자 권한으로 복제합니다.
+
+```bash
+sudo mkdir -p /srv/my-office-reservation
+sudo chown -R $USER:$USER /srv/my-office-reservation
+git clone git@github.com:<user>/<repository>.git /srv/my-office-reservation
+cd /srv/my-office-reservation
+```
+
 ### 2. 가상 환경(Virtual Environment) 설정
 가상 환경을 생성하고 활성화합니다.
 
@@ -378,4 +395,3 @@ python manage.py flush
    ```bash
    python manage.py createsuperuser
    ```
-
