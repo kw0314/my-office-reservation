@@ -64,6 +64,19 @@ pip install -r requirements.txt
      psql -U postgres
      ```
      접속 후 비밀번호를 입력하고, 데이터베이스를 생성합니다.
+     Ubuntu/Linux에서 아래와 같은 peer 인증 오류가 발생하면 현재 리눅스 사용자와 PostgreSQL 사용자 인증 방식이 맞지 않는 상태입니다.
+
+     ```text
+     psql: error: connection to server on socket "/var/run/postgresql/.s.PGSQL.5432" failed: FATAL:  Peer authentication failed for user "postgres"
+     ```
+
+     이 경우 `postgres` 리눅스 사용자 권한으로 `psql`에 접속합니다.
+
+     ```bash
+     sudo -u postgres psql
+     ```
+
+     접속에 성공하면 `postgres=#` 프롬프트가 표시되며, 이어서 데이터베이스와 사용자를 생성하면 됩니다.
    - pgAdmin 사용: pgAdmin을 실행한 뒤, "Servers" → "Add New Server"로 PostgreSQL 서버를 등록합니다.
      - Host name/address: `127.0.0.1`
      - Port: `5432`
