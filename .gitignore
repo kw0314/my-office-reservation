@@ -17,3 +17,4 @@ Thumbs.db
 
 # Secrets
 .env
+catechism_db.backup
