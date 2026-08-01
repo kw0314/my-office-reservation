@@ -930,7 +930,7 @@
               <input id="wom-2" type="checkbox" class="repeat-wom" value="2"><label class="dow-toggle" for="wom-2">2주</label>
               <input id="wom-3" type="checkbox" class="repeat-wom" value="3"><label class="dow-toggle" for="wom-3">3주</label>
               <input id="wom-4" type="checkbox" class="repeat-wom" value="4"><label class="dow-toggle" for="wom-4">4주</label>
-              <input id="wom-5" type="checkbox" class="repeat-wom" value="5"><label class="dow-toggle" for="wom-5">마지막주</label>
+              <input id="wom-5" type="checkbox" class="repeat-wom" value="5"><label class="dow-toggle" for="wom-5">5주</label>
             </div>
           </div>
 
@@ -2763,8 +2763,8 @@
           : (isEnglishUi() ? `Every ${interval} weeks (${needsDaysText})` : `${interval}주마다 (${needsDaysText})`);
       } else if (type === "custom") {
         const WOM_NAMES = isEnglishUi()
-          ? { "1": "first", "2": "second", "3": "third", "4": "fourth", "5": "last" }
-          : { "1": "첫째", "2": "둘째", "3": "셋째", "4": "넷째", "5": "마지막" };
+          ? { "1": "first", "2": "second", "3": "third", "4": "fourth", "5": "fifth" }
+          : { "1": "첫째", "2": "둘째", "3": "셋째", "4": "넷째", "5": "다섯째" };
         const selectedWeeks = Array.from(document.querySelectorAll(".repeat-wom:checked"))
           .map(cb => WOM_NAMES[cb.value] || cb.value);
         
