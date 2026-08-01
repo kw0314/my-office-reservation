@@ -15,6 +15,23 @@ git clone <repository_url>
 cd my-office-reservation
 ```
 
+Linux 서버의 `/srv` 경로에 배포용으로 복제하려면 `/srv`에 쓰기 권한이 필요합니다.
+
+```bash
+sudo git clone <repository_url> /srv/my-office-reservation
+sudo chown -R $USER:$USER /srv/my-office-reservation
+cd /srv/my-office-reservation
+```
+
+SSH 저장소(`git@github.com:...`)를 사용하는 경우 `sudo git clone`은 root 사용자의 SSH 키를 찾기 때문에 실패할 수 있습니다. 이때는 먼저 폴더를 만들고 현재 사용자에게 권한을 준 뒤, 일반 사용자 권한으로 복제합니다.
+
+```bash
+sudo mkdir -p /srv/my-office-reservation
+sudo chown -R $USER:$USER /srv/my-office-reservation
+git clone git@github.com:<user>/<repository>.git /srv/my-office-reservation
+cd /srv/my-office-reservation
+```
+
 ### 2. 가상 환경(Virtual Environment) 설정
 가상 환경을 생성하고 활성화합니다.
 
@@ -47,6 +64,19 @@ pip install -r requirements.txt
      psql -U postgres
      ```
      접속 후 비밀번호를 입력하고, 데이터베이스를 생성합니다.
+     Ubuntu/Linux에서 아래와 같은 peer 인증 오류가 발생하면 현재 리눅스 사용자와 PostgreSQL 사용자 인증 방식이 맞지 않는 상태입니다.
+
+     ```text
+     psql: error: connection to server on socket "/var/run/postgresql/.s.PGSQL.5432" failed: FATAL:  Peer authentication failed for user "postgres"
+     ```
+
+     이 경우 `postgres` 리눅스 사용자 권한으로 `psql`에 접속합니다.
+
+     ```bash
+     sudo -u postgres psql
+     ```
+
+     접속에 성공하면 `postgres=#` 프롬프트가 표시되며, 이어서 데이터베이스와 사용자를 생성하면 됩니다.
    - pgAdmin 사용: pgAdmin을 실행한 뒤, "Servers" → "Add New Server"로 PostgreSQL 서버를 등록합니다.
      - Host name/address: `127.0.0.1`
      - Port: `5432`
@@ -378,4 +408,3 @@ python manage.py flush
    ```bash
    python manage.py createsuperuser
    ```
-
