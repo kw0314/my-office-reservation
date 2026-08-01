@@ -97,7 +97,7 @@ def _generate_repeat_dates(
     repeat_type  : 'weekly' | 'monthly' | 'monthly_custom'
     repeat_days  : [0..6]  0=Sun..6=Sat  (weekly / monthly_custom)
     repeat_interval : every N weeks (weekly only, default 1)
-    repeat_weeks_of_month: [1..5] 5=last (monthly_custom only)
+    repeat_weeks_of_month: [1..5] week number in month (monthly_custom only)
     """
     result: list[date] = []
 
@@ -123,8 +123,8 @@ def _generate_repeat_dates(
                 py_wd = (our_dow - 1) % 7  # our Sun=0 -> Python Sun=6
                 day_nums = [row[py_wd] for row in _cal.monthcalendar(cur_y, cur_m) if row[py_wd]]
                 for wom in sorted(repeat_weeks_of_month):
-                    idx = -1 if wom == 5 else wom - 1
-                    if 0 <= idx < len(day_nums) or wom == 5:
+                    idx = wom - 1
+                    if 0 <= idx < len(day_nums):
                         d = date(cur_y, cur_m, day_nums[idx])
                         if start_date <= d <= repeat_until:
                             result.append(d)
@@ -181,7 +181,7 @@ def create_reservation(*, room: Room, start_at, end_at, title: str, note_interna
     repeat_type: 'weekly'|'monthly'|'monthly_custom'
     repeat_days: [0..6] 0=Sun (weekly/monthly_custom)
     repeat_interval: every N weeks (weekly, default 1)
-    repeat_weeks_of_month: [1..5] 5=last (monthly_custom)
+    repeat_weeks_of_month: [1..5] week number in month (monthly_custom)
     """
     title_s = title.strip()
     note_s = note_internal.strip()

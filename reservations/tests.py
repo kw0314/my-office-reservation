@@ -24,3 +24,16 @@ class SeriesRepeatUntilTests(SimpleTestCase):
         self.assertEqual(on_day.status, services.Reservation.STATUS_CONFIRMED)
         self.assertEqual(after.status, services.Reservation.STATUS_CANCELLED)
         self.assertEqual(before.series_repeat_until, date(2026, 7, 3))
+
+
+class RepeatDateGenerationTests(SimpleTestCase):
+    def test_monthly_custom_fifth_week_requires_actual_fifth_weekday(self):
+        dates = services._generate_repeat_dates(
+            start_date=date(2026, 2, 1),
+            repeat_until=date(2026, 3, 31),
+            repeat_type="monthly_custom",
+            repeat_days=[2],  # Tuesday
+            repeat_weeks_of_month=[5],
+        )
+
+        self.assertEqual(dates, [date(2026, 3, 31)])
